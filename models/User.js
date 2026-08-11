@@ -12,13 +12,40 @@ const UserSchema = new mongoose.Schema({
   activePlan: { type: String, default: 'No Active Plan' },
   perPageRate: { type: Number, default: 0 },
   referralCode: { type: String, unique: true },
+  referredBy: { type: String, default: null },
 
-  lastSubmissionDate: { type: String }, // Per day 1 page submission check
+  lastSubmissionDate: { type: String },
   pendingSubmissions: [{
     pages: Number,
     amount: Number,
     creditTime: Date
   }],
+
+  // Admin approval ke liye yeh arrays hona zaroori hai
+  depositRequests: [{
+    _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
+    planName: String,
+    amount: Number,
+    perPageRate: Number,
+    utr: String,
+    screenshotBase64: String,
+    status: { type: String, default: 'PENDING' },
+    date: { type: Date, default: Date.now }
+  }],
+
+  withdrawalRequests: [{
+    _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
+    amount: Number,
+    upi: String,
+    name: String,
+    bank: String,
+    accountNo: String,
+    ifsc: String,
+    status: { type: String, default: 'PENDING' },
+    date: { type: Date, default: Date.now }
+  }],
+
+  claimedRewards: [{ type: String }],
 
   submissionsHistory: [{
     pages: Number,
@@ -33,7 +60,6 @@ const UserSchema = new mongoose.Schema({
     date: String
   }],
 
-  // Forgot Password OTP Fields
   otp: { type: String },
   otpExpires: { type: Date },
   

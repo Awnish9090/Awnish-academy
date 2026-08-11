@@ -118,7 +118,12 @@
         <div class="form-group"><label class="form-label">Email Address</label><input type="email" id="auth-email" class="form-input"></div>
         <div class="form-group"><label class="form-label">Password</label><input type="password" id="auth-password" class="form-input"></div>
         
-        <div style="text-align: right; margin-top: -6px; margin-bottom: 16px;">
+        <div class="form-group" id="ref-group" style="display: none;">
+          <label class="form-label">Referral Code (Optional)</label>
+          <input type="text" id="auth-ref-code" class="form-input" placeholder="e.g. ABC123">
+        </div>
+
+        <div style="text-align: right; margin-top: -6px; margin-bottom: 16px;" id="forgot-link-box">
           <a href="#" onclick="toggleForgotPass(true)" style="font-size: 12px; color: #635a04; font-weight: bold;">Forgot Password?</a>
         </div>
 
@@ -166,7 +171,7 @@
         <div id="home-submissions-list"></div>
       </div>
 
-      <!-- DEPOSIT & ACTIVATE VIEW (SCREENSHOT 1 MATCH) -->
+      <!-- DEPOSIT & ACTIVATE VIEW -->
       <div id="deposit-view" class="view">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
           <span style="font-size: 20px; cursor: pointer;" onclick="switchTab('home')">&larr;</span>
@@ -175,9 +180,9 @@
 
         <div class="section-title">Select Plan</div>
 
-        <div class="plan-option-card selected" onclick="selectPlan('Starter — ₹599', 599, 100, this)">
+        <div class="plan-option-card selected" onclick="selectPlan('Starter — ₹699', 699, 100, this)">
           <div><div class="plan-opt-title">Starter</div><div class="plan-opt-sub">₹100/page</div></div>
-          <div class="plan-opt-price">₹599</div>
+          <div class="plan-opt-price">₹699</div>
         </div>
 
         <div class="plan-option-card" onclick="selectPlan('Growth — ₹1499', 1499, 210, this)">
@@ -185,8 +190,8 @@
           <div class="plan-opt-price">₹1499</div>
         </div>
 
-        <div class="plan-option-card" onclick="selectPlan('Premium — ₹2499', 2499, 320, this)">
-          <div><div class="plan-opt-title">Premium</div><div class="plan-opt-sub">₹320/page</div></div>
+        <div class="plan-option-card" onclick="selectPlan('Premium — ₹2499', 2499, 310, this)">
+          <div><div class="plan-opt-title">Premium</div><div class="plan-opt-sub">₹310/page</div></div>
           <div class="plan-opt-price">₹2499</div>
         </div>
 
@@ -197,8 +202,8 @@
 
         <div class="payment-instruction-box">
           <div style="color: #635a04; font-weight: bold; margin-bottom: 6px;">Payment Instructions</div>
-          <div style="font-size: 13px;">UPI ID: <b style="color: #635a04;">company@upi</b></div>
-          <div style="font-size: 13px; margin-top: 4px;">Amount: <b id="instruction-amount" style="color: #635a04;">₹599</b></div>
+          <div style="font-size: 13px;">UPI ID: <b style="color: #635a04;">awnish98@ptyes</b></div>
+          <div style="font-size: 13px; margin-top: 4px;">Amount: <b id="instruction-amount" style="color: #635a04;">₹699</b></div>
           <p style="font-size: 11px; color: #666; margin-top: 6px;">Payment karke screenshot upload karein.</p>
         </div>
 
@@ -215,7 +220,7 @@
         <button class="btn-submit" onclick="submitDepositPlan()">Submit Deposit Request</button>
       </div>
 
-      <!-- WITHDRAW VIEW (SCREENSHOT 2 MATCH) -->
+      <!-- WITHDRAW VIEW -->
       <div id="withdraw-view" class="view">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
           <span style="font-size: 20px; cursor: pointer;" onclick="switchTab('home')">&larr;</span>
@@ -260,19 +265,19 @@
         <button class="btn-submit" onclick="submitPages()">Submit for Approval</button>
       </div>
 
-      <!-- TEAM VIEW (SCREENSHOT 3 & 4 MATCH) -->
+      <!-- TEAM VIEW -->
       <div id="team-view" class="view">
         <div class="section-title">Team & Rewards</div>
         
         <div class="referral-card">
           <div class="referral-title">Your Referral Code</div>
           <div class="referral-code" id="display-ref-code">---</div>
-          <button class="btn-share" onclick="copyRef()">Share Code</button>
+          <button class="btn-share" onclick="shareRefCode()">Share Code 🚀</button>
         </div>
 
         <div class="team-stats">
-          <div class="stat-box"><div style="font-size: 20px; font-weight: bold; color: #635a04;">1/1</div><div style="font-size: 12px; color: #666;">Direct Active</div></div>
-          <div class="stat-box"><div style="font-size: 20px; font-weight: bold; color: #635a04;">1/1</div><div style="font-size: 12px; color: #666;">Total Team Active</div></div>
+          <div class="stat-box"><div style="font-size: 20px; font-weight: bold; color: #635a04;" id="stat-direct-active">0/0</div><div style="font-size: 12px; color: #666;">Direct Active</div></div>
+          <div class="stat-box"><div style="font-size: 20px; font-weight: bold; color: #635a04;" id="stat-total-active">0/0</div><div style="font-size: 12px; color: #666;">Total Team Active</div></div>
         </div>
 
         <div class="tree-button"><span>🌿 View Full Team Tree (All Levels)</span><span>&gt;</span></div>
@@ -291,25 +296,25 @@
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Starter Reward</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹500</span></div>
           <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 3 direct active</div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 33%;"></div></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="starter-progress" style="width: 0%;"></div></div>
         </div>
 
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Team Builder</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹1000</span></div>
           <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 5 direct & 10 total team active</div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 20%;"></div></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="builder-progress" style="width: 0%;"></div></div>
         </div>
 
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Team Leader</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹2000</span></div>
           <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 8 direct & 20 total team active</div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 12%;"></div></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="leader-progress" style="width: 0%;"></div></div>
         </div>
 
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Elite Achiever</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹7000</span></div>
           <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 20 direct & 50 total team active</div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 5%;"></div></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="elite-progress" style="width: 0%;"></div></div>
         </div>
 
         <div class="section-title">Monthly Salary</div>
@@ -317,6 +322,10 @@
           <div style="display: flex; justify-content: space-between;"><strong>Monthly Salary Income</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹50,000/month</span></div>
           <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 500 total team active</div>
         </div>
+
+        <!-- DOWNLINE MEMBERS SECTION DIRECTLY BELOW MONTHLY SALARY -->
+        <div class="section-title" style="margin-top:20px;">Direct / Downline Members</div>
+        <div id="downline-members-list"></div>
       </div>
 
       <!-- WALLET VIEW -->
@@ -341,11 +350,18 @@
           <div class="greeting-name">👨‍💼 Admin Dashboard</div>
           <svg class="logout-icon" onclick="logout()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         </div>
-        <div class="section-title" style="margin-top: 10px;">Registered Users & Plan Control</div>
+
+        <div class="section-title" style="margin-top: 15px; color:#dc2626;">🏦 Pending Withdrawal Requests</div>
+        <div id="admin-withdrawals-list"></div>
+
+        <div class="section-title" style="margin-top: 15px; color:#635a04;">💳 Pending Plan Deposits</div>
+        <div id="admin-deposits-list"></div>
+
+        <div class="section-title" style="margin-top: 15px;">Registered Users & Plan Control</div>
         <div id="admin-users-list"></div>
       </div>
 
-      <!-- BOTTOM NAVIGATION BAR WITH LOGOS -->
+      <!-- BOTTOM NAVIGATION BAR -->
       <div class="nav-bar" id="main-nav-bar">
         <div class="nav-item active" onclick="switchTab('home')"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Home</span></div>
         <div class="nav-item" onclick="switchTab('submit')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Submit</span></div>
@@ -361,7 +377,7 @@
   <script>
     let capturedBase64 = null;
     let depBase64 = null;
-    let selectedPlan = { name: 'Starter — ₹599', amount: 599, perPageRate: 100 };
+    let selectedPlan = { name: 'Starter — ₹699', amount: 699, perPageRate: 100 };
     let authMode = 'login';
 
     function toggleForgotPass(show) {
@@ -400,6 +416,8 @@
       authMode = m;
       document.getElementById('name-group').style.display = m === 'register' ? 'block' : 'none';
       document.getElementById('mobile-group').style.display = m === 'register' ? 'block' : 'none';
+      document.getElementById('ref-group').style.display = m === 'register' ? 'block' : 'none';
+      document.getElementById('forgot-link-box').style.display = m === 'register' ? 'none' : 'block';
       document.getElementById('auth-sub-title').innerText = m === 'register' ? 'Create new account' : 'Sign in to continue';
       document.getElementById('auth-btn').innerText = m === 'register' ? 'Register Account' : 'Login';
     }
@@ -409,9 +427,10 @@
       const password = document.getElementById('auth-password').value;
       const name = document.getElementById('auth-name').value;
       const mobile = document.getElementById('auth-mobile').value;
+      const refCodeInput = document.getElementById('auth-ref-code').value;
 
       const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
-      const payload = authMode === 'register' ? { name, email, mobile, password } : { email, password };
+      const payload = authMode === 'register' ? { name, email, mobile, password, refCodeInput } : { email, password };
 
       const res = await fetch(endpoint, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
       const data = await res.json();
@@ -439,7 +458,7 @@
       if(role === 'admin') {
         switchTab('admin');
         document.getElementById('main-nav-bar').style.display = 'none';
-        loadAdminUsers();
+        loadAdminData();
       } else {
         document.getElementById('main-nav-bar').style.display = 'flex';
         switchTab('home');
@@ -457,6 +476,34 @@
         document.getElementById('withdraw-avail-bal').innerText = '₹' + d.walletBalance;
         document.getElementById('display-plan').innerText = d.activePlan;
         document.getElementById('display-ref-code').innerText = d.referralCode;
+
+        // Stats calculation
+        const directActive = d.directActiveCount || 0;
+        const totalDirect = (d.downline || []).length;
+        document.getElementById('stat-direct-active').innerText = `${directActive}/${totalDirect}`;
+        document.getElementById('stat-total-active').innerText = `${directActive}/${totalDirect}`;
+
+        // Progress bar percentages
+        document.getElementById('starter-progress').style.width = Math.min((directActive / 3) * 100, 100) + '%';
+        document.getElementById('builder-progress').style.width = Math.min((directActive / 5) * 100, 100) + '%';
+        document.getElementById('leader-progress').style.width = Math.min((directActive / 8) * 100, 100) + '%';
+        document.getElementById('elite-progress').style.width = Math.min((directActive / 20) * 100, 100) + '%';
+
+        // Downline Users Rendering (Name & Email)
+        const downlineContainer = document.getElementById('downline-members-list');
+        if (d.downline && d.downline.length > 0) {
+          downlineContainer.innerHTML = d.downline.map(u => `
+            <div class="list-item">
+              <div>
+                <div class="list-item-title">${u.name}</div>
+                <div class="list-item-sub">📧 ${u.email}</div>
+              </div>
+              <span class="${u.activePlan !== 'No Active Plan' ? 'badge-approved' : ''}" style="${u.activePlan === 'No Active Plan' ? 'background:#fee2e2; color:#dc2626; padding:4px 8px; border-radius:8px; font-size:11px;' : ''}">${u.activePlan}</span>
+            </div>
+          `).join('');
+        } else {
+          downlineContainer.innerHTML = `<div style="text-align:center; font-size:12px; color:#888; padding:10px;">Aapke Refferal Code se koi join nahi hua hai.</div>`;
+        }
 
         // Submissions List
         document.getElementById('home-submissions-list').innerHTML = (d.submissionsHistory || []).map(s => `
@@ -515,7 +562,7 @@
       const accountNo = document.getElementById('w-acc').value;
       const ifsc = document.getElementById('w-ifsc').value;
 
-      if (!amount || amount < 300) return alert('Minimum withdrawal amount ₹300 hai.');
+      if (!amount || amount < 300) return alert('Minimum withdrawal amount ₹300.');
 
       const res = await fetch('/api/user/withdraw', {
         method: 'POST',
@@ -528,24 +575,53 @@
       if (res.ok) { switchTab('home'); loadUserData(); }
     }
 
-    async function loadAdminUsers() {
-      const res = await fetch('/api/admin/users', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+    // ADMIN DATA LOADER
+    async function loadAdminData() {
+      const res = await fetch('/api/admin/all-data', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
       if(res.ok) {
-        const users = await res.json();
-        const container = document.getElementById('admin-users-list');
-        container.innerHTML = users.map(u => `
+        const data = await res.json();
+
+        // 1. Withdrawal Requests
+        const withdrawContainer = document.getElementById('admin-withdrawals-list');
+        if (data.withdrawals.length > 0) {
+          withdrawContainer.innerHTML = data.withdrawals.map(w => `
+            <div class="admin-card">
+              <div style="font-weight:bold;">${w.userName} (${w.userEmail})</div>
+              <div style="font-size:13px; color:#dc2626; font-weight:bold; margin: 4px 0;">Requested: ₹${w.amount} | Wallet Bal: ₹${w.currentBalance}</div>
+              <div style="font-size:12px; color:#555;">UPI: ${w.upi} | Bank: ${w.bank} | A/c: ${w.accountNo} | IFSC: ${w.ifsc}</div>
+              <button onclick="approveWithdrawal('${w.userId}', '${w._id}')" style="background:#16a34a; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; margin-top:8px; cursor:pointer; width:100%;">Approve Withdrawal (Wallet Sets to 0) ✅</button>
+            </div>
+          `).join('');
+        } else withdrawContainer.innerHTML = '<div style="font-size:12px; color:#888;">Koi Pending Withdrawal Nahi Hai.</div>';
+
+        // 2. Deposit Requests
+        const depositContainer = document.getElementById('admin-deposits-list');
+        if (data.deposits.length > 0) {
+          depositContainer.innerHTML = data.deposits.map(d => `
+            <div class="admin-card">
+              <div style="font-weight:bold;">${d.userName} (${d.userEmail})</div>
+              <div style="font-size:13px; color:#635a04; font-weight:bold; margin: 4px 0;">Plan: ${d.planName} (₹${d.amount})</div>
+              <div style="font-size:12px; color:#555;">UTR Ref: ${d.utr}</div>
+              <button onclick="approveDeposit('${d.userId}', '${d._id}')" style="background:#635a04; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; margin-top:8px; cursor:pointer; width:100%;">Approve Deposit Plan & Add ₹${d.amount} Balance ✅</button>
+            </div>
+          `).join('');
+        } else depositContainer.innerHTML = '<div style="font-size:12px; color:#888;">Koi Pending Deposit Request Nahi Hai.</div>';
+
+        // 3. Registered Users
+        const usersContainer = document.getElementById('admin-users-list');
+        usersContainer.innerHTML = data.users.map(u => `
           <div class="admin-card">
             <div style="font-weight:bold;">${u.name} (${u.email})</div>
             <div style="font-size:12px; color:#666;">Mobile: ${u.mobile} | Active Plan: <b>${u.activePlan}</b></div>
             <div style="font-size:13px; margin: 6px 0; color:#635a04; font-weight:bold;">Wallet: ₹${u.walletBalance} | Earned: ₹${u.totalEarned}</div>
             
             <div style="margin-top: 10px;">
-              <label style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px;">Select Plan to Approve:</label>
+              <label style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px;">Manual Plan Override:</label>
               <div style="display:flex; gap:6px;">
                 <select id="admin-plan-select-${u._id}" style="padding:6px; border-radius:6px; font-size:12px; flex:1;">
-                  <option value="Starter — ₹599,100">Starter — ₹599 (₹100/pg)</option>
+                  <option value="Starter — ₹699,100">Starter — ₹699 (₹100/pg)</option>
                   <option value="Growth — ₹1499,210">Growth — ₹1499 (₹210/pg)</option>
-                  <option value="Premium — ₹2499,320">Premium — ₹2499 (₹320/pg)</option>
+                  <option value="Premium — ₹2499,310">Premium — ₹2499 (₹310/pg)</option>
                   <option value="Ultra — ₹4499,500">Ultra — ₹4499 (₹500/pg)</option>
                 </select>
                 <button onclick="approvePlanFromSelect('${u._id}')" style="background:#635a04; color:white; border:none; padding:6px 10px; border-radius:6px; font-size:11px; cursor:pointer;">Approve</button>
@@ -561,6 +637,28 @@
       }
     }
 
+    async function approveWithdrawal(userId, reqId) {
+      const res = await fetch('/api/admin/approve-withdraw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        body: JSON.stringify({ userId, reqId })
+      });
+      const data = await res.json();
+      alert(data.message);
+      loadAdminData();
+    }
+
+    async function approveDeposit(userId, reqId) {
+      const res = await fetch('/api/admin/approve-deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        body: JSON.stringify({ userId, reqId })
+      });
+      const data = await res.json();
+      alert(data.message);
+      loadAdminData();
+    }
+
     async function approvePlanFromSelect(id) {
       const val = document.getElementById(`admin-plan-select-${id}`).value;
       const [pName, pRate] = val.split(',');
@@ -570,7 +668,7 @@
         body: JSON.stringify({ planName: pName, perPageRate: pRate })
       });
       alert('Plan Activated Successfully!');
-      loadAdminUsers();
+      loadAdminData();
     }
 
     async function deleteUser(id) {
@@ -580,7 +678,7 @@
           headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
         });
         alert('User Deleted!');
-        loadAdminUsers();
+        loadAdminData();
       }
     }
 
@@ -591,7 +689,7 @@
           headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
         });
         alert('User Balance Reset!');
-        loadAdminUsers();
+        loadAdminData();
       }
     }
 
@@ -626,10 +724,21 @@
       document.getElementById('supp-txt').value = '';
     }
 
-    function copyRef() {
+    // Native Web Share API System
+    function shareRefCode() {
       const code = document.getElementById('display-ref-code').innerText;
-      navigator.clipboard.writeText(code);
-      alert('Referral Code Copied: ' + code);
+      const shareData = {
+        title: 'Join Aawnish Academy',
+        text: `Mera Referral Code: ${code} - Aawnish Academy join karein aur daily earn karein!`,
+        url: window.location.origin
+      };
+
+      if (navigator.share) {
+        navigator.share(shareData).catch((e) => console.log('Share canceled', e));
+      } else {
+        navigator.clipboard.writeText(code);
+        alert('Referral Code Copied: ' + code);
+      }
     }
 
     function logout() { localStorage.clear(); location.reload(); }

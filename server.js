@@ -18,10 +18,10 @@ mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('MongoDB Connected Successfully!');
     // Auto-Create Default Admin Account
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@gmail.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'awnishac@gmail.com';
     let admin = await User.findOne({ email: adminEmail });
     if (!admin) {
-      const hashedPassword = await bcrypt.hash('Admin@12345', 10);
+      const hashedPassword = await bcrypt.hash('Admin@9090', 10);
       admin = new User({
         name: 'System Admin',
         email: adminEmail,
@@ -31,14 +31,23 @@ mongoose.connect(process.env.MONGO_URI)
         referralCode: 'ADMIN1'
       });
       await admin.save();
-      console.log('✅ Default Admin Created: admin@gmail.com / Admin@12345');
+      console.log('✅ Default Admin Created: awnishac@gmail.com / Admin@9090');
     }
   })
   .catch(err => console.log('DB Connection Error: ', err));
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
-  auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS }
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  },
+  tls: {
+    rejectUnauthorized: false
+  }
 });
 
 const authenticateToken = (req, res, next) => {
@@ -55,18 +64,24 @@ const authenticateToken = (req, res, next) => {
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-// 1. REGISTRATION
+// 1. REGISTRATION (WITH REFERRAL CODE SUPPORT)
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { name, email, mobile, password } = req.body;
+    const { name, email, mobile, password, refCodeInput } = req.body;
     if (!name || !email || !mobile || !password) return res.status(400).json({ message: 'Saare fields bharna zaroori hai.' });
     if (await User.findOne({ email })) return res.status(400).json({ message: 'Yeh Email pehle se registered hai.' });
     if (await User.findOne({ mobile })) return res.status(400).json({ message: 'Yeh Mobile Number pehle se registered hai.' });
 
+    let referredBy = null;
+    if (refCodeInput && refCodeInput.trim() !== '') {
+      const parentUser = await User.findOne({ referralCode: refCodeInput.trim().toUpperCase() });
+      if (parentUser) referredBy = parentUser.referralCode;
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const refCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    const user = new User({ name, email, mobile, password: hashedPassword, referralCode: refCode });
+    const user = new User({ name, email, mobile, password: hashedPassword, referralCode: refCode, referredBy });
     await user.save();
 
     res.status(201).json({ message: 'Registration Successful!' });
@@ -128,7 +143,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 5. DASHBOARD & AUTO 10-MIN CREDIT CHECK
+// 5. DASHBOARD & AUTO REWARDS & DOWNLINE CALCULATION
 app.get('/api/user/dashboard', authenticateToken, async (req, res) => {
   try {
     let user = await User.findById(req.user.id).select('-password');
@@ -155,8 +170,39 @@ app.get('/api/user/dashboard', authenticateToken, async (req, res) => {
       return true;
     });
 
+    // Downline calculation (Fetch Name & Email of referred users)
+    const downline = await User.find({ referredBy: user.referralCode }).select('name email activePlan createdAt');
+    const directActiveCount = downline.filter(u => u.activePlan !== 'No Active Plan').length;
+
+    // Automatic Rewards Calculations
+    const rewardsList = [
+      { id: 'starter', name: 'Starter Reward', directNeed: 3, bonus: 500 },
+      { id: 'builder', name: 'Team Builder', directNeed: 5, bonus: 1000 },
+      { id: 'leader', name: 'Team Leader', directNeed: 8, bonus: 2000 },
+      { id: 'elite', name: 'Elite Achiever', directNeed: 20, bonus: 7000 }
+    ];
+
+    for (let r of rewardsList) {
+      if (directActiveCount >= r.directNeed && !user.claimedRewards.includes(r.id)) {
+        user.walletBalance += r.bonus;
+        user.totalEarned += r.bonus;
+        user.claimedRewards.push(r.id);
+        user.transactionsHistory.unshift({
+          type: `🎁 Target Bonus: ${r.name}`,
+          amount: r.bonus,
+          date: new Date().toLocaleString()
+        });
+        updated = true;
+      }
+    }
+
     if (updated) await user.save();
-    res.json(user);
+
+    res.json({
+      ...user.toObject(),
+      downline,
+      directActiveCount
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -200,6 +246,16 @@ app.post('/api/user/deposit', authenticateToken, async (req, res) => {
     const { planName, amount, perPageRate, utr, screenshotBase64 } = req.body;
     const user = await User.findById(req.user.id);
 
+    user.depositRequests.unshift({
+      planName,
+      amount: Number(amount),
+      perPageRate: Number(perPageRate),
+      utr,
+      screenshotBase64,
+      status: 'PENDING'
+    });
+    await user.save();
+
     transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: process.env.ADMIN_EMAIL,
@@ -208,7 +264,7 @@ app.post('/api/user/deposit', authenticateToken, async (req, res) => {
       attachments: screenshotBase64 ? [{ filename: 'screenshot.jpg', path: screenshotBase64 }] : []
     }).catch(e => console.log('Mail error:', e));
 
-    res.json({ message: 'Deposit Request Admin Gmail par bhej di gayi hai! Verification ke baad Plan active ho jayega.' });
+    res.json({ message: 'Deposit Request Submitted! Admin approve karte hi plan active ho jayega.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -222,11 +278,14 @@ app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Low Balance! Apke wallet me itna balance nahi hai.' });
     }
 
-    user.walletBalance -= Number(amount);
-    user.transactionsHistory.unshift({
-      type: 'Withdrawal paid',
-      amount: -Number(amount),
-      date: new Date().toLocaleString()
+    user.withdrawalRequests.unshift({
+      amount: Number(amount),
+      upi,
+      name,
+      bank,
+      accountNo,
+      ifsc,
+      status: 'PENDING'
     });
     await user.save();
 
@@ -258,16 +317,97 @@ app.post('/api/user/support-msg', authenticateToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ---------------- ADMIN PANEL ROUTES ----------------
+// GET ALL DATA FOR ADMIN PANEL (Fixes Route Mismatch)
+app.get('/api/admin/all-data', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
 
-// GET ALL USERS (Track Balance & Active Plan)
-app.get('/api/admin/users', authenticateToken, async (req, res) => {
-  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
-  const users = await User.find({ role: { $ne: 'admin' } }).select('-password');
-  res.json(users);
+    const users = await User.find({ role: { $ne: 'admin' } }).select('-password');
+    
+    let deposits = [];
+    let withdrawals = [];
+
+    users.forEach(u => {
+      (u.depositRequests || []).forEach(d => {
+        if (d.status === 'PENDING') {
+          deposits.push({ ...d.toObject(), userName: u.name, userEmail: u.email, userId: u._id });
+        }
+      });
+
+      (u.withdrawalRequests || []).forEach(w => {
+        if (w.status === 'PENDING') {
+          withdrawals.push({ ...w.toObject(), userName: u.name, userEmail: u.email, userId: u._id, currentBalance: u.walletBalance });
+        }
+      });
+    });
+
+    res.json({ users, deposits, withdrawals });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// APPROVE PLAN
+// APPROVE WITHDRAWAL REQUEST (Sets wallet to 0 upon approval)
+app.post('/api/admin/approve-withdraw', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
+    const { userId, reqId } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const reqObj = user.withdrawalRequests.id(reqId);
+    if (reqObj && reqObj.status === 'PENDING') {
+      reqObj.status = 'APPROVED';
+      const approvedAmount = reqObj.amount;
+
+      user.walletBalance = 0; // Balance immediately sets to 0 on approval
+      user.transactionsHistory.unshift({
+        type: 'Withdrawal Approved (Paid)',
+        amount: -approvedAmount,
+        date: new Date().toLocaleString()
+      });
+
+      await user.save();
+      return res.json({ message: 'Withdrawal Approved! User wallet set to 0.' });
+    }
+    res.status(400).json({ message: 'Request not found or already processed.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// APPROVE PLAN DEPOSIT REQUEST
+app.post('/api/admin/approve-deposit', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
+    const { userId, reqId } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const reqObj = user.depositRequests.id(reqId);
+    if (reqObj && reqObj.status === 'PENDING') {
+      reqObj.status = 'APPROVED';
+      user.activePlan = reqObj.planName;
+      user.perPageRate = reqObj.perPageRate;
+      user.walletBalance += reqObj.amount;
+
+      user.transactionsHistory.unshift({
+        type: `Plan Activated (${reqObj.planName})`,
+        amount: reqObj.amount,
+        date: new Date().toLocaleString()
+      });
+
+      await user.save();
+      return res.json({ message: 'Plan Approved & Deposit Balance Credited!' });
+    }
+    res.status(400).json({ message: 'Request not found.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// MANUAL PLAN APPROVAL FROM SELECT
 app.post('/api/admin/approve-plan/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
   const { planName, perPageRate } = req.body;
