@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard App</title>
+  <!-- QR Code Library for Dynamic Payment Scanner -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     body { background-color: #f6f6f6; color: #333; display: flex; justify-content: center; }
@@ -57,25 +59,30 @@
     .form-input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #e0e0e0; background: #f9f9f9; font-size: 14px; outline: none; }
     .btn-submit { width: 100%; background: #635a04; color: #fff; border: none; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: serif; }
 
-    /* Screenshot 1 Deposit UI Style */
     .plan-option-card { border: 1px solid #e0e0e0; border-radius: 16px; padding: 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: #fff; }
     .plan-option-card.selected { border: 2px solid #635a04; background-color: #eaf7ed; }
     .plan-opt-title { font-weight: bold; font-size: 16px; }
     .plan-opt-sub { font-size: 12px; color: #635a04; margin-top: 4px; font-weight: 600; }
     .plan-opt-price { font-size: 18px; font-weight: 800; color: #635a04; }
-    .payment-instruction-box { background: #eaf7ed; border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid #cce8d2; }
+    
+    .payment-instruction-box { background: #eaf7ed; border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid #cce8d2; text-align: center; }
+    #qr-container-wrapper { margin: 12px auto; padding: 10px; background: #fff; border-radius: 10px; display: inline-block; border: 1px solid #ddd; }
+    #qrcode img { margin: 0 auto; display: block; }
+    
     .upload-screenshot-box { border: 2px dashed #635a04; border-radius: 16px; padding: 24px; text-align: center; background: #fafafa; margin-bottom: 16px; cursor: pointer; }
 
-    /* Team Section UI Style */
     .referral-card { background: #635a04; color: white; text-align: center; border-radius: 16px; padding: 20px; margin-bottom: 16px; }
     .referral-title { font-size: 12px; opacity: 0.8; margin-bottom: 6px; }
     .referral-code { font-size: 24px; font-weight: 800; letter-spacing: 2px; margin-bottom: 12px; }
     .btn-share { background: #fff; color: #635a04; border: none; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
     .team-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
     .stat-box { background: #fff; border-radius: 12px; padding: 16px; text-align: center; border: 1px solid #eaeaea; }
-    .tree-button { background: #eaf7ed; color: #635a04; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
+    .tree-button { background: #eaf7ed; color: #635a04; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; margin-bottom: 20px; cursor: pointer; }
     .progress-bar-bg { background: #eee; height: 6px; border-radius: 3px; overflow: hidden; margin: 8px 0; }
     .progress-bar-fill { background: #635a04; height: 100%; }
+
+    .downline-badge-active { background: #dcfce7; color: #15803d; font-size: 11px; font-weight: bold; padding: 4px 8px; border-radius: 6px; }
+    .downline-badge-inactive { background: #fee2e2; color: #dc2626; font-size: 11px; font-weight: bold; padding: 4px 8px; border-radius: 6px; }
 
     .nav-bar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; height: 60px; background: #ffffff; border-top: 1px solid #eaeaea; display: flex; justify-content: space-around; align-items: center; z-index: 100; }
     .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #888; text-decoration: none; font-size: 11px; cursor: pointer; width: 20%; }
@@ -96,7 +103,7 @@
     <div id="auth-view" class="view active">
       <div class="brand-header">
         <div class="brand-logo">🌿</div>
-        <div class="brand-name">AWNISH ACADEMY</div>
+        <div class="brand-name">AAWNISH ACADEMY</div>
         <div style="font-size: 13px; color: #777; margin-top: 4px;" id="auth-sub-title">Sign in to continue</div>
       </div>
 
@@ -115,15 +122,14 @@
       <div id="auth-form-box">
         <div class="form-group" id="name-group" style="display: none;"><label class="form-label">Full Name</label><input type="text" id="auth-name" class="form-input"></div>
         <div class="form-group" id="mobile-group" style="display: none;"><label class="form-label">Mobile Number</label><input type="tel" id="auth-mobile" class="form-input"></div>
+        
+        <!-- REFERRAL CODE FIELD FOR REGISTRATION -->
+        <div class="form-group" id="ref-group" style="display: none;"><label class="form-label">Referral Code (Optional)</label><input type="text" id="auth-referral" class="form-input" placeholder="e.g. ABC123"></div>
+        
         <div class="form-group"><label class="form-label">Email Address</label><input type="email" id="auth-email" class="form-input"></div>
         <div class="form-group"><label class="form-label">Password</label><input type="password" id="auth-password" class="form-input"></div>
         
-        <div class="form-group" id="ref-group" style="display: none;">
-          <label class="form-label">Referral Code (Optional)</label>
-          <input type="text" id="auth-ref-code" class="form-input" placeholder="e.g. ABC123">
-        </div>
-
-        <div style="text-align: right; margin-top: -6px; margin-bottom: 16px;" id="forgot-link-box">
+        <div style="text-align: right; margin-top: -6px; margin-bottom: 16px;">
           <a href="#" onclick="toggleForgotPass(true)" style="font-size: 12px; color: #635a04; font-weight: bold;">Forgot Password?</a>
         </div>
 
@@ -171,7 +177,7 @@
         <div id="home-submissions-list"></div>
       </div>
 
-      <!-- DEPOSIT & ACTIVATE VIEW -->
+      <!-- DEPOSIT VIEW -->
       <div id="deposit-view" class="view">
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
           <span style="font-size: 20px; cursor: pointer;" onclick="switchTab('home')">&larr;</span>
@@ -190,8 +196,8 @@
           <div class="plan-opt-price">₹1499</div>
         </div>
 
-        <div class="plan-option-card" onclick="selectPlan('Premium — ₹2499', 2499, 310, this)">
-          <div><div class="plan-opt-title">Premium</div><div class="plan-opt-sub">₹310/page</div></div>
+        <div class="plan-option-card" onclick="selectPlan('Premium — ₹2499', 2499, 320, this)">
+          <div><div class="plan-opt-title">Premium</div><div class="plan-opt-sub">₹320/page</div></div>
           <div class="plan-opt-price">₹2499</div>
         </div>
 
@@ -200,11 +206,17 @@
           <div class="plan-opt-price">₹4499</div>
         </div>
 
+        <!-- DYNAMIC QR SCANNER SECTION -->
         <div class="payment-instruction-box">
-          <div style="color: #635a04; font-weight: bold; margin-bottom: 6px;">Payment Instructions</div>
-          <div style="font-size: 13px;">UPI ID: <b style="color: #635a04;">awnish98@ptyes</b></div>
+          <div style="color: #635a04; font-weight: bold; margin-bottom: 6px;">Scan & Pay to Activate</div>
+          
+          <div id="qr-container-wrapper">
+            <div id="qrcode"></div>
+          </div>
+
+          <div style="font-size: 13px;">UPI ID: <b id="display-company-upi" style="color: #635a04;">84348084840@upi</b></div>
           <div style="font-size: 13px; margin-top: 4px;">Amount: <b id="instruction-amount" style="color: #635a04;">₹699</b></div>
-          <p style="font-size: 11px; color: #666; margin-top: 6px;">Payment karke screenshot upload karein.</p>
+          <p style="font-size: 11px; color: #666; margin-top: 6px;">Kisi bhi UPI App (GPay/PhonePe/Paytm) se scan karein aur payment screenshot upload karein.</p>
         </div>
 
         <input type="file" id="deposit-file-input" accept="image/*" style="display: none;" onchange="handleDepositScreenshot(event)">
@@ -272,15 +284,15 @@
         <div class="referral-card">
           <div class="referral-title">Your Referral Code</div>
           <div class="referral-code" id="display-ref-code">---</div>
-          <button class="btn-share" onclick="shareRefCode()">Share Code 🚀</button>
+          <button class="btn-share" onclick="copyRef()">Share Code</button>
         </div>
 
         <div class="team-stats">
-          <div class="stat-box"><div style="font-size: 20px; font-weight: bold; color: #635a04;" id="stat-direct-active">0/0</div><div style="font-size: 12px; color: #666;">Direct Active</div></div>
-          <div class="stat-box"><div style="font-size: 20px; font-weight: bold; color: #635a04;" id="stat-total-active">0/0</div><div style="font-size: 12px; color: #666;">Total Team Active</div></div>
+          <div class="stat-box"><div style="font-size: 20px; font-weight: bold; color: #635a04;" id="stat-direct">0/0</div><div style="font-size: 12px; color: #666;">Direct Active</div></div>
+          <div class="stat-box"><div style="font-size: 20px; font-weight: bold; color: #635a04;" id="stat-total">0/0</div><div style="font-size: 12px; color: #666;">Total Team Active</div></div>
         </div>
 
-        <div class="tree-button"><span>🌿 View Full Team Tree (All Levels)</span><span>&gt;</span></div>
+        <div class="tree-button" onclick="viewTree()"><span>🌿 View Full Team Tree (All Levels)</span><span>&gt;</span></div>
 
         <div class="section-title">Daily Fixed Income</div>
         <div class="card">
@@ -296,25 +308,25 @@
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Starter Reward</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹500</span></div>
           <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 3 direct active</div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" id="starter-progress" style="width: 0%;"></div></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 33%;"></div></div>
         </div>
 
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Team Builder</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹1000</span></div>
           <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 5 direct & 10 total team active</div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" id="builder-progress" style="width: 0%;"></div></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 20%;"></div></div>
         </div>
 
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Team Leader</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹2000</span></div>
           <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 8 direct & 20 total team active</div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" id="leader-progress" style="width: 0%;"></div></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 12%;"></div></div>
         </div>
 
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Elite Achiever</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹7000</span></div>
           <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 20 direct & 50 total team active</div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" id="elite-progress" style="width: 0%;"></div></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 5%;"></div></div>
         </div>
 
         <div class="section-title">Monthly Salary</div>
@@ -323,9 +335,12 @@
           <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 500 total team active</div>
         </div>
 
-        <!-- DOWNLINE MEMBERS SECTION DIRECTLY BELOW MONTHLY SALARY -->
-        <div class="section-title" style="margin-top:20px;">Direct / Downline Members</div>
-        <div id="downline-members-list"></div>
+        <!-- NEW: DOWNLINE DIRECT REFERRALS LIST SECTION -->
+        <div class="section-title">Downline Team Members</div>
+        <div id="downline-team-list">
+          <div style="text-align: center; color: #999; font-size: 13px; padding: 20px;">Loading downline team...</div>
+        </div>
+
       </div>
 
       <!-- WALLET VIEW -->
@@ -350,14 +365,7 @@
           <div class="greeting-name">👨‍💼 Admin Dashboard</div>
           <svg class="logout-icon" onclick="logout()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         </div>
-
-        <div class="section-title" style="margin-top: 15px; color:#dc2626;">🏦 Pending Withdrawal Requests</div>
-        <div id="admin-withdrawals-list"></div>
-
-        <div class="section-title" style="margin-top: 15px; color:#635a04;">💳 Pending Plan Deposits</div>
-        <div id="admin-deposits-list"></div>
-
-        <div class="section-title" style="margin-top: 15px;">Registered Users & Plan Control</div>
+        <div class="section-title" style="margin-top: 10px;">Registered Users & Plan Control</div>
         <div id="admin-users-list"></div>
       </div>
 
@@ -374,11 +382,39 @@
 
   </div>
 
+  <!-- COMPLETE INTEGRATED JAVASCRIPT -->
   <script>
+    // Configuration: Replace with your original UPI ID & Payee Name
+    const ADMIN_UPI_ID = "8434084840@upi"; 
+    const ADMIN_PAYEE_NAME = "AAWNISH ACADEMY";
+
     let capturedBase64 = null;
     let depBase64 = null;
     let selectedPlan = { name: 'Starter — ₹699', amount: 699, perPageRate: 100 };
     let authMode = 'login';
+    let qrGenerator = null;
+
+    function initQRScanner() {
+      const qrEl = document.getElementById("qrcode");
+      if (!qrEl) return;
+      qrEl.innerHTML = "";
+      qrGenerator = new QRCode(qrEl, {
+        width: 170,
+        height: 170,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.M
+      });
+      updatePaymentQR(selectedPlan.amount);
+    }
+
+    function updatePaymentQR(amount) {
+      const upiUrl = `upi://pay?pa=${encodeURIComponent(ADMIN_UPI_ID)}&pn=${encodeURIComponent(ADMIN_PAYEE_NAME)}&am=${encodeURIComponent(amount)}&cu=INR`;
+      if (qrGenerator) {
+        qrGenerator.clear();
+        qrGenerator.makeCode(upiUrl);
+      }
+    }
 
     function toggleForgotPass(show) {
       document.getElementById('forgot-pass-box').style.display = show ? 'block' : 'none';
@@ -417,9 +453,11 @@
       document.getElementById('name-group').style.display = m === 'register' ? 'block' : 'none';
       document.getElementById('mobile-group').style.display = m === 'register' ? 'block' : 'none';
       document.getElementById('ref-group').style.display = m === 'register' ? 'block' : 'none';
-      document.getElementById('forgot-link-box').style.display = m === 'register' ? 'none' : 'block';
       document.getElementById('auth-sub-title').innerText = m === 'register' ? 'Create new account' : 'Sign in to continue';
       document.getElementById('auth-btn').innerText = m === 'register' ? 'Register Account' : 'Login';
+      document.getElementById('toggle-text').innerHTML = m === 'register' ? 
+        `Pehle se account hai? <a href="#" onclick="toggleAuthMode('login')" style="color: #635a04; font-weight: bold;">Login Karein</a>` : 
+        `Account nahi hai? <a href="#" onclick="toggleAuthMode('register')" style="color: #635a04; font-weight: bold;">Register Karein</a>`;
     }
 
     async function handleAuth() {
@@ -427,10 +465,10 @@
       const password = document.getElementById('auth-password').value;
       const name = document.getElementById('auth-name').value;
       const mobile = document.getElementById('auth-mobile').value;
-      const refCodeInput = document.getElementById('auth-ref-code').value;
+      const referralCode = document.getElementById('auth-referral').value;
 
       const endpoint = authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
-      const payload = authMode === 'register' ? { name, email, mobile, password, refCodeInput } : { email, password };
+      const payload = authMode === 'register' ? { name, email, mobile, password, referralCode } : { email, password };
 
       const res = await fetch(endpoint, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
       const data = await res.json();
@@ -458,11 +496,12 @@
       if(role === 'admin') {
         switchTab('admin');
         document.getElementById('main-nav-bar').style.display = 'none';
-        loadAdminData();
+        loadAdminUsers();
       } else {
         document.getElementById('main-nav-bar').style.display = 'flex';
         switchTab('home');
         loadUserData();
+        setTimeout(initQRScanner, 300);
       }
     }
 
@@ -475,56 +514,77 @@
         document.getElementById('display-earned').innerText = 'Total Earned: ₹' + d.totalEarned;
         document.getElementById('withdraw-avail-bal').innerText = '₹' + d.walletBalance;
         document.getElementById('display-plan').innerText = d.activePlan;
-        document.getElementById('display-ref-code').innerText = d.referralCode;
-
-        // Stats calculation
-        const directActive = d.directActiveCount || 0;
-        const totalDirect = (d.downline || []).length;
-        document.getElementById('stat-direct-active').innerText = `${directActive}/${totalDirect}`;
-        document.getElementById('stat-total-active').innerText = `${directActive}/${totalDirect}`;
-
-        // Progress bar percentages
-        document.getElementById('starter-progress').style.width = Math.min((directActive / 3) * 100, 100) + '%';
-        document.getElementById('builder-progress').style.width = Math.min((directActive / 5) * 100, 100) + '%';
-        document.getElementById('leader-progress').style.width = Math.min((directActive / 8) * 100, 100) + '%';
-        document.getElementById('elite-progress').style.width = Math.min((directActive / 20) * 100, 100) + '%';
-
-        // Downline Users Rendering (Name & Email)
-        const downlineContainer = document.getElementById('downline-members-list');
-        if (d.downline && d.downline.length > 0) {
-          downlineContainer.innerHTML = d.downline.map(u => `
-            <div class="list-item">
-              <div>
-                <div class="list-item-title">${u.name}</div>
-                <div class="list-item-sub">📧 ${u.email}</div>
-              </div>
-              <span class="${u.activePlan !== 'No Active Plan' ? 'badge-approved' : ''}" style="${u.activePlan === 'No Active Plan' ? 'background:#fee2e2; color:#dc2626; padding:4px 8px; border-radius:8px; font-size:11px;' : ''}">${u.activePlan}</span>
-            </div>
-          `).join('');
-        } else {
-          downlineContainer.innerHTML = `<div style="text-align:center; font-size:12px; color:#888; padding:10px;">Aapke Refferal Code se koi join nahi hua hai.</div>`;
-        }
+        document.getElementById('display-ref-code').innerText = d.referralCode || '---';
 
         // Submissions List
         document.getElementById('home-submissions-list').innerHTML = (d.submissionsHistory || []).map(s => `
           <div class="list-item"><div><div class="list-item-title">${s.pages} pages</div><div class="list-item-sub">₹${s.amount} | ${s.date}</div></div><span class="badge-approved">APPROVED</span></div>
-        `).join('');
+        `).join('') || '<div style="text-align:center; color:#999; font-size:12px; padding:12px;">No submissions yet</div>';
 
         // Transactions List
         const txHtml = (d.transactionsHistory || []).map(t => `
           <div class="list-item"><div><div class="list-item-title">${t.type}</div><div class="list-item-sub">${t.date}</div></div><div class="${t.amount < 0 ? 'amount-minus' : 'amount-plus'}">${t.amount < 0 ? '' : '+'}${t.amount}</div></div>
-        `).join('');
+        `).join('') || '<div style="text-align:center; color:#999; font-size:12px; padding:12px;">No transactions yet</div>';
 
         document.getElementById('wallet-tx-history').innerHTML = txHtml;
         document.getElementById('recent-transactions-list').innerHTML = txHtml;
       }
     }
 
+    // LOAD TEAM & DIRECT DOWNLINE USERS
+    async function loadTeamData() {
+      const res = await fetch('/api/user/team', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+      if (res.ok) {
+        const data = await res.json();
+        document.getElementById('stat-direct').innerText = `${data.directActive}/${data.directTotal}`;
+        document.getElementById('stat-total').innerText = `${data.directActive}/${data.directTotal}`;
+
+        const container = document.getElementById('downline-team-list');
+        if (!data.directUsers || data.directUsers.length === 0) {
+          container.innerHTML = `<div style="text-align: center; color: #999; font-size: 13px; padding: 20px; background: #fff; border-radius: 12px; border: 1px solid #eaeaea;">Abhi tak koi user aapke referral se nahi juda hai.</div>`;
+          return;
+        }
+
+        container.innerHTML = data.directUsers.map(u => {
+          const isActive = u.activePlan && u.activePlan !== 'No Active Plan';
+          const joinDate = u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'Recent';
+          return `
+            <div class="list-item" style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div class="list-item-title">${u.name}</div>
+                <div class="list-item-sub" style="font-size: 12px; color: #555;">📧 ${u.email}</div>
+                <div class="list-item-sub" style="font-size: 11px; color: #888;">Plan: <b>${u.activePlan}</b> | Joined: ${joinDate}</div>
+              </div>
+              <div>
+                <span class="${isActive ? 'downline-badge-active' : 'downline-badge-inactive'}">
+                  ${isActive ? '● Active' : '○ Not Active'}
+                </span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    async function viewTree() {
+      const res = await fetch('/api/user/tree', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+      if(res.ok) {
+        const tree = await res.json();
+        if(tree.length === 0) return alert('Aapke under koi referral abhi tak join nahi hua hai.');
+        let treeMsg = 'Aapke Team Members:\n\n' + tree.map((t, idx) => `${idx + 1}. ${t.name} (${t.email})\n   Plan: ${t.activePlan}`).join('\n\n');
+        alert(treeMsg);
+      }
+    }
+
+    // SELECT PLAN & INSTANTLY UPDATE PAYMENT SCANNER
     function selectPlan(name, amount, rate, element) {
       selectedPlan = { name, amount, perPageRate: rate };
       document.querySelectorAll('.plan-option-card').forEach(c => c.classList.remove('selected'));
       element.classList.add('selected');
       document.getElementById('instruction-amount').innerText = '₹' + amount;
+      
+      // Automatic Scanner Update
+      updatePaymentQR(amount);
     }
 
     function handleDepositScreenshot(event) {
@@ -542,6 +602,7 @@
     async function submitDepositPlan() {
       if (!depBase64) return alert('Kripya pehle payment screenshot upload karein.');
       const utr = document.getElementById('deposit-utr').value;
+      if (!utr) return alert('Kripya 12-digit UTR No. enter karein.');
 
       const res = await fetch('/api/user/deposit', {
         method: 'POST',
@@ -562,7 +623,7 @@
       const accountNo = document.getElementById('w-acc').value;
       const ifsc = document.getElementById('w-ifsc').value;
 
-      if (!amount || amount < 300) return alert('Minimum withdrawal amount ₹300.');
+      if (!amount || amount < 300) return alert('Minimum withdrawal amount ₹300 hai.');
 
       const res = await fetch('/api/user/withdraw', {
         method: 'POST',
@@ -575,53 +636,24 @@
       if (res.ok) { switchTab('home'); loadUserData(); }
     }
 
-    // ADMIN DATA LOADER
-    async function loadAdminData() {
-      const res = await fetch('/api/admin/all-data', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+    async function loadAdminUsers() {
+      const res = await fetch('/api/admin/users', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
       if(res.ok) {
-        const data = await res.json();
-
-        // 1. Withdrawal Requests
-        const withdrawContainer = document.getElementById('admin-withdrawals-list');
-        if (data.withdrawals.length > 0) {
-          withdrawContainer.innerHTML = data.withdrawals.map(w => `
-            <div class="admin-card">
-              <div style="font-weight:bold;">${w.userName} (${w.userEmail})</div>
-              <div style="font-size:13px; color:#dc2626; font-weight:bold; margin: 4px 0;">Requested: ₹${w.amount} | Wallet Bal: ₹${w.currentBalance}</div>
-              <div style="font-size:12px; color:#555;">UPI: ${w.upi} | Bank: ${w.bank} | A/c: ${w.accountNo} | IFSC: ${w.ifsc}</div>
-              <button onclick="approveWithdrawal('${w.userId}', '${w._id}')" style="background:#16a34a; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; margin-top:8px; cursor:pointer; width:100%;">Approve Withdrawal (Wallet Sets to 0) ✅</button>
-            </div>
-          `).join('');
-        } else withdrawContainer.innerHTML = '<div style="font-size:12px; color:#888;">Koi Pending Withdrawal Nahi Hai.</div>';
-
-        // 2. Deposit Requests
-        const depositContainer = document.getElementById('admin-deposits-list');
-        if (data.deposits.length > 0) {
-          depositContainer.innerHTML = data.deposits.map(d => `
-            <div class="admin-card">
-              <div style="font-weight:bold;">${d.userName} (${d.userEmail})</div>
-              <div style="font-size:13px; color:#635a04; font-weight:bold; margin: 4px 0;">Plan: ${d.planName} (₹${d.amount})</div>
-              <div style="font-size:12px; color:#555;">UTR Ref: ${d.utr}</div>
-              <button onclick="approveDeposit('${d.userId}', '${d._id}')" style="background:#635a04; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; margin-top:8px; cursor:pointer; width:100%;">Approve Deposit Plan & Add ₹${d.amount} Balance ✅</button>
-            </div>
-          `).join('');
-        } else depositContainer.innerHTML = '<div style="font-size:12px; color:#888;">Koi Pending Deposit Request Nahi Hai.</div>';
-
-        // 3. Registered Users
-        const usersContainer = document.getElementById('admin-users-list');
-        usersContainer.innerHTML = data.users.map(u => `
+        const users = await res.json();
+        const container = document.getElementById('admin-users-list');
+        container.innerHTML = users.map(u => `
           <div class="admin-card">
             <div style="font-weight:bold;">${u.name} (${u.email})</div>
             <div style="font-size:12px; color:#666;">Mobile: ${u.mobile} | Active Plan: <b>${u.activePlan}</b></div>
             <div style="font-size:13px; margin: 6px 0; color:#635a04; font-weight:bold;">Wallet: ₹${u.walletBalance} | Earned: ₹${u.totalEarned}</div>
             
             <div style="margin-top: 10px;">
-              <label style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px;">Manual Plan Override:</label>
+              <label style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px;">Select Plan to Approve:</label>
               <div style="display:flex; gap:6px;">
                 <select id="admin-plan-select-${u._id}" style="padding:6px; border-radius:6px; font-size:12px; flex:1;">
                   <option value="Starter — ₹699,100">Starter — ₹699 (₹100/pg)</option>
                   <option value="Growth — ₹1499,210">Growth — ₹1499 (₹210/pg)</option>
-                  <option value="Premium — ₹2499,310">Premium — ₹2499 (₹310/pg)</option>
+                  <option value="Premium — ₹2499,320">Premium — ₹2499 (₹320/pg)</option>
                   <option value="Ultra — ₹4499,500">Ultra — ₹4499 (₹500/pg)</option>
                 </select>
                 <button onclick="approvePlanFromSelect('${u._id}')" style="background:#635a04; color:white; border:none; padding:6px 10px; border-radius:6px; font-size:11px; cursor:pointer;">Approve</button>
@@ -637,38 +669,18 @@
       }
     }
 
-    async function approveWithdrawal(userId, reqId) {
-      const res = await fetch('/api/admin/approve-withdraw', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
-        body: JSON.stringify({ userId, reqId })
-      });
-      const data = await res.json();
-      alert(data.message);
-      loadAdminData();
-    }
-
-    async function approveDeposit(userId, reqId) {
-      const res = await fetch('/api/admin/approve-deposit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
-        body: JSON.stringify({ userId, reqId })
-      });
-      const data = await res.json();
-      alert(data.message);
-      loadAdminData();
-    }
-
     async function approvePlanFromSelect(id) {
       const val = document.getElementById(`admin-plan-select-${id}`).value;
       const [pName, pRate] = val.split(',');
+      const prices = { 'Starter — ₹699': 699, 'Growth — ₹1499': 1499, 'Premium — ₹2499': 2499, 'Ultra — ₹4499': 4499 };
+
       await fetch(`/api/admin/approve-plan/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
-        body: JSON.stringify({ planName: pName, perPageRate: pRate })
+        body: JSON.stringify({ planName: pName, perPageRate: pRate, planPrice: prices[pName] || 699 })
       });
       alert('Plan Activated Successfully!');
-      loadAdminData();
+      loadAdminUsers();
     }
 
     async function deleteUser(id) {
@@ -678,7 +690,7 @@
           headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
         });
         alert('User Deleted!');
-        loadAdminData();
+        loadAdminUsers();
       }
     }
 
@@ -689,7 +701,7 @@
           headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
         });
         alert('User Balance Reset!');
-        loadAdminData();
+        loadAdminUsers();
       }
     }
 
@@ -724,21 +736,10 @@
       document.getElementById('supp-txt').value = '';
     }
 
-    // Native Web Share API System
-    function shareRefCode() {
+    function copyRef() {
       const code = document.getElementById('display-ref-code').innerText;
-      const shareData = {
-        title: 'Join Aawnish Academy',
-        text: `Mera Referral Code: ${code} - Aawnish Academy join karein aur daily earn karein!`,
-        url: window.location.origin
-      };
-
-      if (navigator.share) {
-        navigator.share(shareData).catch((e) => console.log('Share canceled', e));
-      } else {
-        navigator.clipboard.writeText(code);
-        alert('Referral Code Copied: ' + code);
-      }
+      navigator.clipboard.writeText(code);
+      alert('Referral Code Copied: ' + code);
     }
 
     function logout() { localStorage.clear(); location.reload(); }
@@ -754,6 +755,13 @@
       if(idxMap[t] !== undefined) {
         document.querySelectorAll('.nav-item')[idxMap[t]].classList.add('active');
       }
+
+      if (t === 'team') loadTeamData();
+      if (t === 'deposit') {
+        if (!qrGenerator) initQRScanner();
+        else updatePaymentQR(selectedPlan.amount);
+      }
+
       window.scrollTo(0, 0);
     }
 

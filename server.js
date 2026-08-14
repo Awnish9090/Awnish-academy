@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend'); // Nodemailer ki jagah Resend import kiya
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
@@ -13,6 +13,10 @@ const app = express();
 app.use(express.json({ limit: '15mb' }));
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Resend Instance Initialization
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
@@ -36,20 +40,6 @@ mongoose.connect(process.env.MONGO_URI)
   })
   .catch(err => console.log('DB Connection Error: ', err));
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
-
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -68,9 +58,9 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, mobile, password, refCodeInput } = req.body;
-    if (!name || !email || !mobile || !password) return res.status(400).json({ message: 'Saare fields bharna zaroori hai.' });
-    if (await User.findOne({ email })) return res.status(400).json({ message: 'Yeh Email pehle se registered hai.' });
-    if (await User.findOne({ mobile })) return res.status(400).json({ message: 'Yeh Mobile Number pehle se registered hai.' });
+    if (!name || !email || !mobile || !password) return res.status(400).json({ message: 'All fields are required.' });
+    if (await User.findOne({ email })) return res.status(400).json({ message: 'This email is already registered.' });
+    if (await User.findOne({ mobile })) return res.status(400).json({ message: 'This mobile number is already registered.' });
 
     let referredBy = null;
     if (refCodeInput && refCodeInput.trim() !== '') {
@@ -106,19 +96,19 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: 'Email registered nahi hai.' });
+    if (!user) return res.status(404).json({ message: 'Email not registered.' });
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.otp = otp;
-    user.otpExpires = Date.now() + 10 * 60 * 1000;
+    user.otpExpires = Date.now() + 5 * 60 * 1000;
     await user.save();
 
-    transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
+    resend.emails.send({
+      from: FROM_EMAIL,
+      to: [email],
       subject: '🔑 Password Reset OTP',
-      text: `Aapka Password Reset OTP hai: ${otp} (10 minutes tak valid hai)`
-    }).catch(e => console.log('Mail error:', e));
+      text: `Aapka Password Reset OTP hai: ${otp} (5 minutes tak valid hai)`
+    }).catch(e => console.log('Resend Mail error:', e));
 
     res.json({ message: 'OTP aapke Email par bhej diya gaya hai!' });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -131,7 +121,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     const user = await User.findOne({ email, otp });
 
     if (!user || user.otpExpires < Date.now()) {
-      return res.status(400).json({ message: 'Galat ya Expired OTP!' });
+      return res.status(400).json({ message: 'Wrong or Expired OTP!' });
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
@@ -139,7 +129,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     user.otpExpires = undefined;
     await user.save();
 
-    res.json({ message: 'Password Reset Successful! Ab Login Karein.' });
+    res.json({ message: 'Password Reset Successful.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -228,13 +218,23 @@ app.post('/api/user/submit-page', authenticateToken, async (req, res) => {
     user.pendingSubmissions.push({ pages: pageCount, amount: earnedAmount, creditTime });
     await user.save();
 
-    transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
+    // Base64 to Buffer attachment conversion for Resend
+    let attachments = [];
+    if (imageBase64) {
+      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+      attachments.push({
+        filename: 'submission.jpg',
+        content: Buffer.from(base64Data, 'base64')
+      });
+    }
+
+    resend.emails.send({
+      from: FROM_EMAIL,
+      to: [process.env.ADMIN_EMAIL || 'awnishac@gmail.com'],
       subject: `📄 New Page Submission: ${user.name}`,
       text: `User: ${user.name} (${user.email})\nPages: ${pageCount}\nPlan: ${user.activePlan}`,
-      attachments: imageBase64 ? [{ filename: 'submission.jpg', path: imageBase64 }] : []
-    }).catch(e => console.log('Mail error:', e));
+      attachments
+    }).catch(e => console.log('Resend Mail error:', e));
 
     res.json({ message: 'Page Submitted! 10 Minutes me balance wallet me credit ho jayega.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -256,15 +256,25 @@ app.post('/api/user/deposit', authenticateToken, async (req, res) => {
     });
     await user.save();
 
-    transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
+    // Base64 to Buffer attachment conversion for Resend
+    let attachments = [];
+    if (screenshotBase64) {
+      const base64Data = screenshotBase64.replace(/^data:image\/\w+;base64,/, '');
+      attachments.push({
+        filename: 'screenshot.jpg',
+        content: Buffer.from(base64Data, 'base64')
+      });
+    }
+
+    resend.emails.send({
+      from: FROM_EMAIL,
+      to: [process.env.ADMIN_EMAIL || 'awnishac@gmail.com'],
       subject: `💵 Deposit Request: ₹${amount} (${planName})`,
       text: `User Details:\nName: ${user.name}\nEmail: ${user.email}\nMobile: ${user.mobile}\nPlan: ${planName} (₹${amount})\nRate Per Page: ₹${perPageRate}\nUTR Ref: ${utr}`,
-      attachments: screenshotBase64 ? [{ filename: 'screenshot.jpg', path: screenshotBase64 }] : []
-    }).catch(e => console.log('Mail error:', e));
+      attachments
+    }).catch(e => console.log('Resend Mail error:', e));
 
-    res.json({ message: 'Deposit Request Submitted! Admin approve karte hi plan active ho jayega.' });
+    res.json({ message: 'Deposit Request Submitted! Wait for plan active.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -289,12 +299,12 @@ app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
     });
     await user.save();
 
-    transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
+    resend.emails.send({
+      from: FROM_EMAIL,
+      to: [process.env.ADMIN_EMAIL || 'awnishac@gmail.com'],
       subject: `🏦 Withdrawal Request: ₹${amount}`,
       text: `User: ${user.name} (${user.email})\nAmount: ₹${amount}\nUPI: ${upi}\nBank: ${bank}\nAccount: ${accountNo}\nIFSC: ${ifsc}\nHolder Name: ${name}`
-    }).catch(e => console.log('Mail error:', e));
+    }).catch(e => console.log('Resend Mail error:', e));
 
     res.json({ message: 'Withdrawal Request submitted successfully!' });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -306,12 +316,12 @@ app.post('/api/user/support-msg', authenticateToken, async (req, res) => {
     const { text } = req.body;
     const user = await User.findById(req.user.id);
 
-    transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
+    resend.emails.send({
+      from: FROM_EMAIL,
+      to: [process.env.ADMIN_EMAIL || 'awnishac@gmail.com'],
       subject: `💬 Support Query from ${user.name}`,
       text: `User: ${user.name} (${user.email})\nMessage: ${text}`
-    }).catch(e => console.log('Mail error:', e));
+    }).catch(e => console.log('Resend Mail error:', e));
 
     res.json({ message: 'Message sent to Admin Email!' });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -391,7 +401,6 @@ app.post('/api/admin/approve-deposit', authenticateToken, async (req, res) => {
       reqObj.status = 'APPROVED';
       user.activePlan = reqObj.planName;
       user.perPageRate = reqObj.perPageRate;
-      user.walletBalance += reqObj.amount;
 
       user.transactionsHistory.unshift({
         type: `Plan Activated (${reqObj.planName})`,
@@ -407,6 +416,7 @@ app.post('/api/admin/approve-deposit', authenticateToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 // MANUAL PLAN APPROVAL FROM SELECT
 app.post('/api/admin/approve-plan/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
