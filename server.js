@@ -1,11 +1,12 @@
+require('dotenv').config(); // 👈 Is line ko sabse top par hona chahiye!
+
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { Resend } = require('resend'); // Nodemailer ki jagah Resend import kiya
+const { Resend } = require('resend');
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config();
 
 const User = require('./models/User');
 
@@ -14,9 +15,9 @@ app.use(express.json({ limit: '15mb' }));
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Resend Instance Initialization
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+// Fallback API Key agar .env se load na ho
+const resend = new Resend(process.env.RESEND_API_KEY || 're_deqFnURY_BczLDjcexJgY4Kpz9iF6aeHe');
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@awnishacademy.online';
 
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
@@ -160,11 +161,9 @@ app.get('/api/user/dashboard', authenticateToken, async (req, res) => {
       return true;
     });
 
-    // Downline calculation (Fetch Name & Email of referred users)
     const downline = await User.find({ referredBy: user.referralCode }).select('name email activePlan createdAt');
     const directActiveCount = downline.filter(u => u.activePlan !== 'No Active Plan').length;
 
-    // Automatic Rewards Calculations
     const rewardsList = [
       { id: 'starter', name: 'Starter Reward', directNeed: 3, bonus: 500 },
       { id: 'builder', name: 'Team Builder', directNeed: 5, bonus: 1000 },
@@ -218,7 +217,6 @@ app.post('/api/user/submit-page', authenticateToken, async (req, res) => {
     user.pendingSubmissions.push({ pages: pageCount, amount: earnedAmount, creditTime });
     await user.save();
 
-    // Base64 to Buffer attachment conversion for Resend
     let attachments = [];
     if (imageBase64) {
       const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
@@ -256,7 +254,6 @@ app.post('/api/user/deposit', authenticateToken, async (req, res) => {
     });
     await user.save();
 
-    // Base64 to Buffer attachment conversion for Resend
     let attachments = [];
     if (screenshotBase64) {
       const base64Data = screenshotBase64.replace(/^data:image\/\w+;base64,/, '');
@@ -327,7 +324,7 @@ app.post('/api/user/support-msg', authenticateToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET ALL DATA FOR ADMIN PANEL (Fixes Route Mismatch)
+// GET ALL DATA FOR ADMIN PANEL
 app.get('/api/admin/all-data', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
@@ -357,7 +354,19 @@ app.get('/api/admin/all-data', authenticateToken, async (req, res) => {
   }
 });
 
-// APPROVE WITHDRAWAL REQUEST (Sets wallet to 0 upon approval)
+// GET ALL USERS FOR ADMIN PANEL (Fixes 404 Error)
+app.get('/api/admin/users', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
+
+    const users = await User.find({ role: { $ne: 'admin' } }).select('-password');
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// APPROVE WITHDRAWAL REQUEST
 app.post('/api/admin/approve-withdraw', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
@@ -371,7 +380,7 @@ app.post('/api/admin/approve-withdraw', authenticateToken, async (req, res) => {
       reqObj.status = 'APPROVED';
       const approvedAmount = reqObj.amount;
 
-      user.walletBalance = 0; // Balance immediately sets to 0 on approval
+      user.walletBalance = 0;
       user.transactionsHistory.unshift({
         type: 'Withdrawal Approved (Paid)',
         amount: -approvedAmount,
@@ -417,7 +426,7 @@ app.post('/api/admin/approve-deposit', authenticateToken, async (req, res) => {
   }
 });
 
-// MANUAL PLAN APPROVAL FROM SELECT
+// MANUAL PLAN APPROVAL
 app.post('/api/admin/approve-plan/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
   const { planName, perPageRate } = req.body;
