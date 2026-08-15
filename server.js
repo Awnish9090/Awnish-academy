@@ -19,9 +19,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 const resend = new Resend(process.env.RESEND_API_KEY || 're_deqFnURY_BczLDjcexJgY4Kpz9iF6aeHe');
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@awnishacademy.online';
 
-mongoose.connect(process.env.MONGO_URI)
+// Replace process.env.MONGO_URI with your connection string if env variable is missing
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://awnishac_db_user:ej1jT6HIUJkd0FmR@cluster0.nh9ma2o.mongodb.net/?appName=Cluster0';
+
+mongoose.connect(MONGO_URI)
   .then(async () => {
     console.log('MongoDB Connected Successfully!');
+    // ... baki ka code same rahega
+    
     // Auto-Create Default Admin Account
     const adminEmail = process.env.ADMIN_EMAIL || 'awnishac@gmail.com';
     let admin = await User.findOne({ email: adminEmail });
