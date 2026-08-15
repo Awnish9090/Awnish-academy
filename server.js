@@ -9,7 +9,7 @@ require('dotenv').config();
 const { Resend } = require('resend');
 
 // Environment Variables Setup
-const JWT_SECRET = process.env.JWT_SECRET || 'awnish_secret_jwt_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key_98765';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'awnishac@gmail.com';
 const apiKey = process.env.RESEND_API_KEY || 're_HNc3dgS8_KsVCJeuf7jBpLFFwyjwfm4oX';
 
