@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard App</title>
+  <title>Awnish Academy</title>
   <!-- QR Code Library for Dynamic Payment Scanner -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
@@ -50,6 +50,8 @@
     .list-item-title { font-weight: 700; font-size: 15px; font-family: serif; }
     .list-item-sub { font-size: 12px; color: #888; margin-top: 2px; }
     .badge-approved { background-color: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; }
+    .badge-pending { background-color: #fef3c7; color: #b45309; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; }
+    .badge-rejected { background-color: #fee2e2; color: #dc2626; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; }
 
     .upload-box { border: 2px dashed #635a04; border-radius: 16px; padding: 30px 16px; text-align: center; background: #fbfdfb; margin-bottom: 20px; cursor: pointer; }
     .upload-box svg { width: 40px; height: 40px; stroke: #635a04; margin-bottom: 8px; }
@@ -93,6 +95,8 @@
     .amount-plus { color: #15803d; font-weight: 700; }
     .amount-minus { color: #dc2626; font-weight: 700; }
     .admin-card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 12px; border: 1px solid #ddd; }
+    .admin-tab-btn { padding: 8px 12px; border-radius: 8px; border: 1px solid #635a04; background: #fff; color: #635a04; font-weight: bold; cursor: pointer; font-size: 12px; }
+    .admin-tab-btn.active { background: #635a04; color: #fff; }
   </style>
 </head>
 <body>
@@ -103,7 +107,7 @@
     <div id="auth-view" class="view active">
       <div class="brand-header">
         <div class="brand-logo">🌿</div>
-        <div class="brand-name">AAWNISH ACADEMY</div>
+        <div class="brand-name">AWNISH ACADEMY</div>
         <div style="font-size: 13px; color: #777; margin-top: 4px;" id="auth-sub-title">Sign in to continue</div>
       </div>
 
@@ -121,13 +125,13 @@
       <!-- LOGIN / REGISTER FORM -->
       <div id="auth-form-box">
         <div class="form-group" id="name-group" style="display: none;"><label class="form-label">Full Name</label><input type="text" id="auth-name" class="form-input"></div>
-        <div class="form-group" id="mobile-group" style="display: none;"><label class="form-label">Mobile Number</label><input type="tel" id="auth-mobile" class="form-input"></div>
+        <div class="form-group" id="mobile-group" style="display: none;"><label class="form-label">Mobile Number</label><input type="tel" id="auth-mobile" class="form-input" maxlength="10" required></div>
         
         <!-- REFERRAL CODE FIELD FOR REGISTRATION -->
         <div class="form-group" id="ref-group" style="display: none;"><label class="form-label">Referral Code (Optional)</label><input type="text" id="auth-referral" class="form-input" placeholder="e.g. ABC123"></div>
         
-        <div class="form-group"><label class="form-label">Email Address</label><input type="email" id="auth-email" class="form-input"></div>
-        <div class="form-group"><label class="form-label">Password</label><input type="password" id="auth-password" class="form-input"></div>
+        <div class="form-group"><label class="form-label">Email Address</label><input type="email" id="auth-email" class="form-input" placeholder="example@gmail.com" required></div>
+        <div class="form-group"><label class="form-label">Password</label><input type="password" id="auth-password" class="form-input" minlength="8digit"></div>
         
         <div style="text-align: right; margin-top: -6px; margin-bottom: 16px;">
           <a href="#" onclick="toggleForgotPass(true)" style="font-size: 12px; color: #635a04; font-weight: bold;">Forgot Password?</a>
@@ -144,7 +148,7 @@
       <!-- HOME VIEW -->
       <div id="home-view" class="view active">
         <div class="header">
-          <div><div class="greeting-sub">Namaste,</div><div class="greeting-name" id="display-name">USER</div></div>
+          <div><div class="greeting-sub">HELLO</div><div class="greeting-name" id="display-name">USER</div></div>
           <svg class="logout-icon" onclick="logout()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         </div>
 
@@ -214,9 +218,9 @@
             <div id="qrcode"></div>
           </div>
 
-          <div style="font-size: 13px;">UPI ID: <b id="display-company-upi" style="color: #635a04;">84348084840@upi</b></div>
+          <div style="font-size: 13px;">UPI ID: <b id="display-company-upi" style="color: #635a04;">awnish98@ptyes</b></div>
           <div style="font-size: 13px; margin-top: 4px;">Amount: <b id="instruction-amount" style="color: #635a04;">₹699</b></div>
-          <p style="font-size: 11px; color: #666; margin-top: 6px;">Kisi bhi UPI App (GPay/PhonePe/Paytm) se scan karein aur payment screenshot upload karein.</p>
+          <p style="font-size: 11px; color: #666; margin-top: 6px;">Kisi bhi UPI App (GPay/PhonePe/Paytm) se scan kre or payment screenshot upload kre.</p>
         </div>
 
         <input type="file" id="deposit-file-input" accept="image/*" style="display: none;" onchange="handleDepositScreenshot(event)">
@@ -226,10 +230,13 @@
 
         <div class="form-group">
           <label class="form-label">Transaction / UTR Ref </label>
-          <input type="text" id="deposit-utr" class="form-input" placeholder="12-digit UTR No.*" required>
+          <input type="text" id="deposit-utr" class="form-input" placeholder="12-digit UTR No.*" required only>
         </div>
 
         <button class="btn-submit" onclick="submitDepositPlan()">Submit Deposit Request</button>
+
+        <div class="section-title" style="margin-top: 24px;">Your Deposit Requests</div>
+        <div id="user-deposits-list"></div>
       </div>
 
       <!-- WITHDRAW VIEW -->
@@ -254,27 +261,48 @@
 
         <button class="btn-submit" onclick="submitWithdrawalRequest()">Submit Withdraw Request</button>
 
+        <div class="section-title" style="margin-top: 24px;">Withdrawal Status History</div>
+        <div id="user-withdrawals-list"></div>
+
         <div class="section-title" style="margin-top: 24px;">Recent Transactions</div>
         <div id="recent-transactions-list"></div>
       </div>
 
-      <!-- SUBMIT VIEW -->
+      <!-- SUBMIT VIEW (Updated with Daily Task View + Wait for next task lock) -->
       <div id="submit-view" class="view">
-        <div class="section-title">Submit Pages</div>
-        <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;" onchange="handleImageCapture(event)">
+        <div class="section-title">Daily Handwritten Task</div>
         
-        <div class="upload-box" onclick="document.getElementById('camera-input').click()">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          <div style="font-weight: bold; color: #635a04;">Handwritten page photo upload</div>
-          <div style="font-size: 12px; color: #888;" id="upload-status">Click to open Camera & take photo (Max 1MB)</div>
+        <!-- TASK DISPLAY CARD -->
+        <div class="card" id="daily-task-box" style="background:#fffbeb; border:1px solid #fef3c7;">
+          <div style="font-size: 12px; color: #b45309; font-weight: bold;">TODAY'S TOPIC / WORK</div>
+          <div id="task-title-display" style="font-size: 16px; font-weight: bold; margin: 6px 0; color:#92400e;">Loading Today's Task...</div>
+          <div id="task-desc-display" style="font-size: 13px; color: #451a03; line-height: 1.4;">Kripya academy dwara naya task aane ka intazar karein.</div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Number of Pages</label>
-          <input type="number" id="page-count" class="form-input" value="1" readonly>
+        <!-- WAIT FOR NEXT TASK BOX (Shown after submission) -->
+        <div id="wait-task-box" style="display:none; background:#ecfdf5; border:1px solid #a7f3d0; padding:20px; border-radius:16px; text-align:center; margin-bottom:20px;">
+          <div style="font-size:30px; margin-bottom:8px;">⏳</div>
+          <div style="font-weight:bold; color:#065f46; font-size:16px;">Task Submitted Successfully!</div>
+          <div style="font-size:13px; color:#047857; margin-top:6px;">Please wait for next task. (Naya task kal available hoga)</div>
         </div>
 
-        <button class="btn-submit" onclick="submitPages()">Submit for Approval</button>
+        <!-- UPLOAD SECTION -->
+        <div id="task-upload-section">
+          <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;" onchange="handleImageCapture(event)">
+          
+          <div class="upload-box" onclick="document.getElementById('camera-input').click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            <div style="font-weight: bold; color: #635a04;">Handwritten page photo upload</div>
+            <div style="font-size: 12px; color: #888;" id="upload-status">Click to open Camera & take photo (Max 5MB)</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Number of Pages</label>
+            <input type="number" id="page-count" class="form-input" value="1" readonly>
+          </div>
+
+          <button class="btn-submit" id="submit-task-btn" onclick="submitPages()">Submit for Approval</button>
+        </div>
       </div>
 
       <!-- TEAM VIEW -->
@@ -335,7 +363,7 @@
           <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 500 total team active</div>
         </div>
 
-        <!-- NEW: DOWNLINE DIRECT REFERRALS LIST SECTION -->
+        <!-- DOWNLINE DIRECT REFERRALS LIST SECTION -->
         <div class="section-title">Downline Team Members</div>
         <div id="downline-team-list">
           <div style="text-align: center; color: #999; font-size: 13px; padding: 20px;">Loading downline team...</div>
@@ -365,8 +393,49 @@
           <div class="greeting-name">👨‍💼 Admin Dashboard</div>
           <svg class="logout-icon" onclick="logout()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
         </div>
-        <div class="section-title" style="margin-top: 10px;">Registered Users & Plan Control</div>
-        <div id="admin-users-list"></div>
+
+        <!-- ADMIN NAVIGATION SWITCH -->
+        <div style="display: flex; gap: 6px; margin: 16px 0; overflow-x: auto; padding-bottom: 4px;">
+          <button class="admin-tab-btn active" id="tab-btn-deposits" onclick="switchAdminSubTab('deposits')">💵 Deposits</button>
+          <button class="admin-tab-btn" id="tab-btn-withdrawals" onclick="switchAdminSubTab('withdrawals')">🏦 Withdrawals</button>
+          <button class="admin-tab-btn" id="tab-btn-tasks" onclick="switchAdminSubTab('tasks')">📝 Add Task</button>
+          <button class="admin-tab-btn" id="tab-btn-users" onclick="switchAdminSubTab('users')">👥 Users</button>
+        </div>
+
+        <!-- ADMIN DEPOSITS SECTION -->
+        <div id="admin-deposits-sec">
+          <div class="section-title">Deposit Requests (UTR & Screenshot)</div>
+          <div id="admin-deposits-list"></div>
+        </div>
+
+        <!-- ADMIN WITHDRAWALS SECTION -->
+        <div id="admin-withdrawals-sec" style="display: none;">
+          <div class="section-title">Withdrawal Requests (Approve/Reject)</div>
+          <div id="admin-withdrawals-list"></div>
+        </div>
+
+        <!-- ADMIN TASK CREATION SECTION -->
+        <div id="admin-tasks-sec" style="display: none;">
+          <div class="section-title">Send Daily Task to All Users</div>
+          <div class="card">
+            <div class="form-group">
+              <label class="form-label">Task Heading / Title</label>
+              <input type="text" id="admin-task-title" class="form-input" placeholder="e.g. Daily Hindi Story Writing Task">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Task Instructions / Content</label>
+              <textarea id="admin-task-desc" class="form-input" rows="4" placeholder="Task ke bare me likhein jo users ko dekh kar likhna hai..."></textarea>
+            </div>
+            <button class="btn-submit" onclick="publishDailyTask()">Publish Task to All Users</button>
+          </div>
+        </div>
+
+        <!-- ADMIN USERS SECTION -->
+        <div id="admin-users-sec" style="display: none;">
+          <div class="section-title">Registered Users & Plan Control</div>
+          <div id="admin-users-list"></div>
+        </div>
+
       </div>
 
       <!-- BOTTOM NAVIGATION BAR -->
@@ -384,9 +453,8 @@
 
   <!-- COMPLETE INTEGRATED JAVASCRIPT -->
   <script>
-    // Configuration: Replace with your original UPI ID & Payee Name
-    const ADMIN_UPI_ID = "8434084840@upi"; 
-    const ADMIN_PAYEE_NAME = "AAWNISH ACADEMY";
+    const ADMIN_UPI_ID = "awnish98@ptyes"; 
+    const ADMIN_PAYEE_NAME = "AWNISH ACADEMY";
 
     let capturedBase64 = null;
     let depBase64 = null;
@@ -421,6 +489,7 @@
       document.getElementById('auth-form-box').style.display = show ? 'none' : 'block';
     }
 
+    // OTP REQUEST WITH POPUP NOTIFICATION
     async function requestOTP() {
       const email = document.getElementById('forgot-email').value;
       if (!email) return alert('Email enter karein!');
@@ -430,7 +499,12 @@
         body: JSON.stringify({ email })
       });
       const data = await res.json();
-      alert(data.message);
+      if(data.otp) {
+        alert(`🔑 Aapka 6-Digit Password Reset OTP hai: ${data.otp}\n(Yeh 03 minute tak valid hai)`);
+        document.getElementById('forgot-otp').value = data.otp;
+      } else {
+        alert(data.message);
+      }
     }
 
     async function resetPassword() {
@@ -456,8 +530,8 @@
       document.getElementById('auth-sub-title').innerText = m === 'register' ? 'Create new account' : 'Sign in to continue';
       document.getElementById('auth-btn').innerText = m === 'register' ? 'Register Account' : 'Login';
       document.getElementById('toggle-text').innerHTML = m === 'register' ? 
-        `Pehle se account hai? <a href="#" onclick="toggleAuthMode('login')" style="color: #635a04; font-weight: bold;">Login Karein</a>` : 
-        `Account nahi hai? <a href="#" onclick="toggleAuthMode('register')" style="color: #635a04; font-weight: bold;">Register Karein</a>`;
+        `Pehle se account hai? <a href="#" onclick="toggleAuthMode('login')" style="color: #635a04; font-weight: bold;">Login Kre</a>` : 
+        `Account nahi hai? <a href="#" onclick="toggleAuthMode('register')" style="color: #635a04; font-weight: bold;">Register kre</a>`;
     }
 
     async function handleAuth() {
@@ -496,6 +570,7 @@
       if(role === 'admin') {
         switchTab('admin');
         document.getElementById('main-nav-bar').style.display = 'none';
+        loadAdminRequests();
         loadAdminUsers();
       } else {
         document.getElementById('main-nav-bar').style.display = 'flex';
@@ -528,10 +603,66 @@
 
         document.getElementById('wallet-tx-history').innerHTML = txHtml;
         document.getElementById('recent-transactions-list').innerHTML = txHtml;
+
+        // User Withdrawals List with Status Badges
+        const wList = document.getElementById('user-withdrawals-list');
+        if (wList) {
+          wList.innerHTML = (d.withdrawals || []).map(w => {
+            const badgeClass = w.status === 'APPROVED' ? 'badge-approved' : (w.status === 'REJECTED' ? 'badge-rejected' : 'badge-pending');
+            return `
+              <div class="list-item">
+                <div>
+                  <div class="list-item-title">₹${w.amount} to ${w.upi || w.accountNo}</div>
+                  <div class="list-item-sub">${w.date || 'Recent'}</div>
+                </div>
+                <span class="${badgeClass}">${w.status}</span>
+              </div>
+            `;
+          }).join('') || '<div style="text-align:center; color:#999; font-size:12px; padding:12px;">No withdrawal requests yet</div>';
+        }
+
+        // User Deposits List with Status Badges
+        const dList = document.getElementById('user-deposits-list');
+        if (dList) {
+          dList.innerHTML = (d.deposits || []).map(dep => {
+            const badgeClass = dep.status === 'APPROVED' ? 'badge-approved' : (dep.status === 'REJECTED' ? 'badge-rejected' : 'badge-pending');
+            return `
+              <div class="list-item">
+                <div>
+                  <div class="list-item-title">${dep.planName} (₹${dep.amount})</div>
+                  <div class="list-item-sub">UTR: ${dep.utr} | ${dep.date || 'Recent'}</div>
+                </div>
+                <span class="${badgeClass}">${dep.status}</span>
+              </div>
+            `;
+          }).join('') || '<div style="text-align:center; color:#999; font-size:12px; padding:12px;">No deposit requests yet</div>';
+        }
       }
     }
 
-    // LOAD TEAM & DIRECT DOWNLINE USERS
+    // FETCH DAILY TASK & CHECK SUBMISSION STATUS
+    async function loadDailyTask() {
+      const res = await fetch('/api/user/daily-task', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+      if(res.ok) {
+        const data = await res.json();
+        if(data.task) {
+          document.getElementById('task-title-display').innerText = data.task.title;
+          document.getElementById('task-desc-display').innerText = data.task.description;
+        } else {
+          document.getElementById('task-title-display').innerText = "Koi Naya Task Nahi Hai";
+          document.getElementById('task-desc-display').innerText = "Academy dwara task add hone par yahan show hoga.";
+        }
+
+        if(data.isSubmittedToday) {
+          document.getElementById('wait-task-box').style.display = 'block';
+          document.getElementById('task-upload-section').style.display = 'none';
+        } else {
+          document.getElementById('wait-task-box').style.display = 'none';
+          document.getElementById('task-upload-section').style.display = 'block';
+        }
+      }
+    }
+
     async function loadTeamData() {
       const res = await fetch('/api/user/team', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
       if (res.ok) {
@@ -576,14 +707,11 @@
       }
     }
 
-    // SELECT PLAN & INSTANTLY UPDATE PAYMENT SCANNER
     function selectPlan(name, amount, rate, element) {
       selectedPlan = { name, amount, perPageRate: rate };
       document.querySelectorAll('.plan-option-card').forEach(c => c.classList.remove('selected'));
       element.classList.add('selected');
       document.getElementById('instruction-amount').innerText = '₹' + amount;
-      
-      // Automatic Scanner Update
       updatePaymentQR(amount);
     }
 
@@ -600,9 +728,8 @@
     }
 
     async function submitDepositPlan() {
-      if (!depBase64) return alert('Kripya pehle payment screenshot upload karein.');
       const utr = document.getElementById('deposit-utr').value;
-      if (!utr) return alert('Kripya 12-digit UTR No. enter karein.');
+      if (!utr) return alert('Please ente 12-digit UTR No.');
 
       const res = await fetch('/api/user/deposit', {
         method: 'POST',
@@ -612,7 +739,10 @@
 
       const data = await res.json();
       alert(data.message);
-      if(res.ok) switchTab('home');
+      if(res.ok) {
+        switchTab('home');
+        loadUserData();
+      }
     }
 
     async function submitWithdrawalRequest() {
@@ -633,7 +763,127 @@
 
       const data = await res.json();
       alert(data.message);
-      if (res.ok) { switchTab('home'); loadUserData(); }
+      if (res.ok) { 
+        switchTab('home'); 
+        loadUserData(); 
+      }
+    }
+
+    function switchAdminSubTab(tab) {
+      document.getElementById('admin-deposits-sec').style.display = tab === 'deposits' ? 'block' : 'none';
+      document.getElementById('admin-withdrawals-sec').style.display = tab === 'withdrawals' ? 'block' : 'none';
+      document.getElementById('admin-tasks-sec').style.display = tab === 'tasks' ? 'block' : 'none';
+      document.getElementById('admin-users-sec').style.display = tab === 'users' ? 'block' : 'none';
+
+      document.getElementById('tab-btn-deposits').classList.toggle('active', tab === 'deposits');
+      document.getElementById('tab-btn-withdrawals').classList.toggle('active', tab === 'withdrawals');
+      document.getElementById('tab-btn-tasks').classList.toggle('active', tab === 'tasks');
+      document.getElementById('tab-btn-users').classList.toggle('active', tab === 'users');
+
+      if (tab === 'deposits' || tab === 'withdrawals') loadAdminRequests();
+      if (tab === 'users') loadAdminUsers();
+    }
+
+    // ADMIN: PUBLISH DAILY TASK TO ALL USERS
+    async function publishDailyTask() {
+      const title = document.getElementById('admin-task-title').value;
+      const description = document.getElementById('admin-task-desc').value;
+
+      if (!title || !description) return alert('Title aur Description dono likhein.');
+
+      const res = await fetch('/api/admin/create-task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        body: JSON.stringify({ title, description })
+      });
+
+      const data = await res.json();
+      alert(data.message);
+      document.getElementById('admin-task-title').value = '';
+      document.getElementById('admin-task-desc').value = '';
+    }
+
+    async function loadAdminRequests() {
+      const res = await fetch('/api/admin/requests', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+      if (res.ok) {
+        const data = await res.json();
+
+        // 1. DEPOSITS
+        const depContainer = document.getElementById('admin-deposits-list');
+        depContainer.innerHTML = (data.deposits || []).map(d => `
+          <div class="admin-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b>${d.userName} (${d.userEmail})</b>
+              <span class="${d.status === 'APPROVED' ? 'badge-approved' : (d.status === 'REJECTED' ? 'badge-rejected' : 'badge-pending')}">${d.status}</span>
+            </div>
+            <div style="font-size:13px; color:#444; margin-top:4px;">Mobile: ${d.userMobile}</div>
+            <div style="font-size:14px; color:#635a04; font-weight:bold; margin:6px 0;">Plan: ${d.planName} | Amount: ₹${d.amount}</div>
+            <div style="font-size:13px; background:#f0f0f0; padding:6px 8px; border-radius:6px; margin-bottom:8px;">
+              <b>UTR Ref:</b> ${d.utr || 'N/A'} <br>
+              <small>Date: ${d.date || 'Recent'}</small>
+            </div>
+            ${d.screenshotBase64 ? `<div style="margin-bottom:8px;"><a href="${d.screenshotBase64}" target="_blank" style="font-size:12px; color:#1d4ed8; text-decoration:underline;">🔍 View Payment Screenshot</a></div>` : ''}
+            
+            ${d.status === 'PENDING' ? `
+              <div style="display:flex; gap:8px; margin-top:8px;">
+                <button onclick="handleAdminDepositAction('${d.userId}', '${d.depositId}', 'APPROVED')" style="flex:1; background:#15803d; color:white; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">Approve & Activate Plan</button>
+                <button onclick="handleAdminDepositAction('${d.userId}', '${d.depositId}', 'REJECTED')" style="background:#dc2626; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer;">Reject</button>
+              </div>
+            ` : ''}
+          </div>
+        `).join('') || '<div style="text-align:center; color:#999; padding:16px;">Koi Deposit Request nahi hai</div>';
+
+        // 2. WITHDRAWALS
+        const wContainer = document.getElementById('admin-withdrawals-list');
+        wContainer.innerHTML = (data.withdrawals || []).map(w => `
+          <div class="admin-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <b>${w.userName} (${w.userEmail})</b>
+              <span class="${w.status === 'APPROVED' ? 'badge-approved' : (w.status === 'REJECTED' ? 'badge-rejected' : 'badge-pending')}">${w.status}</span>
+            </div>
+            <div style="font-size:13px; color:#444; margin-top:4px;">Mobile: ${w.userMobile}</div>
+            <div style="font-size:16px; color:#dc2626; font-weight:bold; margin:6px 0;">Withdrawal Amount: ₹${w.amount}</div>
+            <div style="font-size:12px; background:#f9f9f9; padding:8px; border-radius:6px; line-height:1.4; border:1px solid #eee;">
+              <b>UPI ID:</b> ${w.upi || 'N/A'} <br>
+              <b>Holder:</b> ${w.holderName || 'N/A'} <br>
+              <b>Bank:</b> ${w.bank || 'N/A'} | <b>A/C:</b> ${w.accountNo || 'N/A'} <br>
+              <b>IFSC:</b> ${w.ifsc || 'N/A'} <br>
+              <small>Date: ${w.date || 'Recent'}</small>
+            </div>
+            
+            ${w.status === 'PENDING' ? `
+              <div style="display:flex; gap:8px; margin-top:10px;">
+                <button onclick="handleAdminWithdrawAction('${w.userId}', '${w.withdrawalId}', 'APPROVED')" style="flex:1; background:#15803d; color:white; border:none; padding:8px; border-radius:6px; font-weight:bold; cursor:pointer;">Approve Withdrawal</button>
+                <button onclick="handleAdminWithdrawAction('${w.userId}', '${w.withdrawalId}', 'REJECTED')" style="background:#dc2626; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer;">Reject & Refund</button>
+              </div>
+            ` : ''}
+          </div>
+        `).join('') || '<div style="text-align:center; color:#999; padding:16px;">Koi Withdrawal Request nahi hai</div>';
+      }
+    }
+
+    async function handleAdminDepositAction(userId, depositId, action) {
+      if (!confirm(`Kya aap is deposit ko ${action} karna chahte hain?`)) return;
+      const res = await fetch('/api/admin/deposit-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        body: JSON.stringify({ userId, depositId, action })
+      });
+      const data = await res.json();
+      alert(data.message);
+      loadAdminRequests();
+    }
+
+    async function handleAdminWithdrawAction(userId, withdrawalId, action) {
+      if (!confirm(`Kya aap is withdrawal ko ${action} karna chahte hain?`)) return;
+      const res = await fetch('/api/admin/withdraw-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        body: JSON.stringify({ userId, withdrawalId, action })
+      });
+      const data = await res.json();
+      alert(data.message);
+      loadAdminRequests();
     }
 
     async function loadAdminUsers() {
@@ -648,7 +898,7 @@
             <div style="font-size:13px; margin: 6px 0; color:#635a04; font-weight:bold;">Wallet: ₹${u.walletBalance} | Earned: ₹${u.totalEarned}</div>
             
             <div style="margin-top: 10px;">
-              <label style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px;">Select Plan to Approve:</label>
+              <label style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px;">Direct Plan Activate (Manual):</label>
               <div style="display:flex; gap:6px;">
                 <select id="admin-plan-select-${u._id}" style="padding:6px; border-radius:6px; font-size:12px; flex:1;">
                   <option value="Starter — ₹699,100">Starter — ₹699 (₹100/pg)</option>
@@ -722,7 +972,10 @@
       });
       const data = await res.json();
       alert(data.message);
-      if(res.ok) switchTab('home');
+      if(res.ok) {
+        switchTab('submit');
+        loadDailyTask();
+      }
     }
 
     async function sendSupport() {
@@ -757,6 +1010,7 @@
       }
 
       if (t === 'team') loadTeamData();
+      if (t === 'submit') loadDailyTask();
       if (t === 'deposit') {
         if (!qrGenerator) initQRScanner();
         else updatePaymentQR(selectedPlan.amount);

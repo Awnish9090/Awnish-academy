@@ -1,57 +1,60 @@
-require('dotenv').config(); // 👈 Is line ko sabse top par hona chahiye!
-
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { Resend } = require('resend');
 const cors = require('cors');
 const path = require('path');
+require('dotenv').config();
 
-const User = require('./models/User');
+const { Resend } = require('resend');
+
+// Environment Variables Setup
+const JWT_SECRET = process.env.JWT_SECRET || 'awnish_secret_jwt_key_2026';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'awnishac@gmail.com';
+const apiKey = process.env.RESEND_API_KEY || 're_HNc3dgS8_KsVCJeuf7jBpLFFwyjwfm4oX';
+
+if (!process.env.RESEND_API_KEY) {
+  console.log('⚠️ WARNING: .env file me RESEND_API_KEY missing hai. Emails send nahi honge lekin server chalta rahega.');
+}
+const resend = new Resend(apiKey);
+
+const { User, Task } = require('./models/User');
 
 const app = express();
 app.use(express.json({ limit: '15mb' }));
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Fallback API Key agar .env se load na ho
-const resend = new Resend(process.env.RESEND_API_KEY || 're_deqFnURY_BczLDjcexJgY4Kpz9iF6aeHe');
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@awnishacademy.online';
-
-// Replace process.env.MONGO_URI with your connection string if env variable is missing
+// Database Connection
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://awnishac_db_user:ej1jT6HIUJkd0FmR@cluster0.nh9ma2o.mongodb.net/?appName=Cluster0';
 
 mongoose.connect(MONGO_URI)
   .then(async () => {
     console.log('MongoDB Connected Successfully!');
-    // ... baki ka code same rahega
-    
-    // Auto-Create Default Admin Account
-    const adminEmail = process.env.ADMIN_EMAIL || 'awnishac@gmail.com';
-    let admin = await User.findOne({ email: adminEmail });
+    let admin = await User.findOne({ email: ADMIN_EMAIL });
     if (!admin) {
-      const hashedPassword = await bcrypt.hash('Admin@9090', 10);
+      const hashedPassword = await bcrypt.hash('Admin@12345', 10);
       admin = new User({
         name: 'System Admin',
-        email: adminEmail,
+        email: ADMIN_EMAIL,
         mobile: '0000000000',
         password: hashedPassword,
         role: 'admin',
         referralCode: 'ADMIN1'
       });
       await admin.save();
-      console.log('✅ Default Admin Created: awnishac@gmail.com / Admin@9090');
+      console.log(`✅ Default Admin Created: ${ADMIN_EMAIL} / Admin@12345`);
     }
   })
   .catch(err => console.log('DB Connection Error: ', err));
 
+// JWT Middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'Access Denied' });
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ message: 'Invalid Token' });
     req.user = user;
     next();
@@ -60,25 +63,41 @@ const authenticateToken = (req, res, next) => {
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-// 1. REGISTRATION (WITH REFERRAL CODE SUPPORT)
+// 1. REGISTRATION WITH REFERRAL FIX
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { name, email, mobile, password, refCodeInput } = req.body;
+    const { name, email, mobile, password, referralCode } = req.body;
     if (!name || !email || !mobile || !password) return res.status(400).json({ message: 'All fields are required.' });
-    if (await User.findOne({ email })) return res.status(400).json({ message: 'This email is already registered.' });
-    if (await User.findOne({ mobile })) return res.status(400).json({ message: 'This mobile number is already registered.' });
+    if (await User.findOne({ email })) return res.status(400).json({ message: 'This Email is already registered.' });
+    if (await User.findOne({ mobile })) return res.status(400).json({ message: 'This Mobile Number is already registered.' });
 
-    let referredBy = null;
-    if (refCodeInput && refCodeInput.trim() !== '') {
-      const parentUser = await User.findOne({ referralCode: refCodeInput.trim().toUpperCase() });
-      if (parentUser) referredBy = parentUser.referralCode;
+    let referrer = null;
+    if (referralCode && referralCode.trim() !== "") {
+      referrer = await User.findOne({ referralCode: referralCode.trim().toUpperCase() });
+      if (!referrer) {
+        return res.status(400).json({ message: 'Galat Referral Code!' });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const refCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    const user = new User({ name, email, mobile, password: hashedPassword, referralCode: refCode, referredBy });
+    const user = new User({ 
+      name, 
+      email, 
+      mobile, 
+      password: hashedPassword, 
+      referralCode: refCode,
+      referredBy: referrer ? referrer._id : null,
+      referredCodeUsed: referrer ? referrer.referralCode : null
+    });
+
     await user.save();
+
+    if (referrer) {
+      referrer.directReferralsCount = (referrer.directReferralsCount || 0) + 1;
+      await referrer.save();
+    }
 
     res.status(201).json({ message: 'Registration Successful!' });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -88,11 +107,14 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: 'Email and Password are required.' });
+
     const user = await User.findOne({ email });
     if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(400).json({ message: 'Galat Email ya Password!' });
+      return res.status(400).json({ message: 'Wrong Email or Password!' });
     }
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -102,21 +124,23 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: 'Email not registered.' });
+    if (!user) return res.status(404).json({ message: 'Email registered nahi hai.' });
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.otp = otp;
-    user.otpExpires = Date.now() + 5 * 60 * 1000;
+    user.otpExpires = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    resend.emails.send({
-      from: FROM_EMAIL,
-      to: [email],
-      subject: '🔑 Password Reset OTP',
-      text: `Aapka Password Reset OTP hai: ${otp} (5 minutes tak valid hai)`
-    }).catch(e => console.log('Resend Mail error:', e));
+    if (apiKey) {
+      await resend.emails.send({
+        from: 'Portal App <noreply@awnishacademy.online>',
+        to: [email],
+        subject: '🔑 Password Reset OTP',
+        html: `<p>Aapka Password Reset OTP hai: <b>${otp}</b> (10 minutes tak valid hai)</p>`
+      }).catch(e => console.log('Mail error:', e));
+    }
 
-    res.json({ message: 'OTP aapke Email par bhej diya gaya hai!' });
+    res.json({ message: 'OTP Generated!', otp: otp });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -135,17 +159,19 @@ app.post('/api/auth/reset-password', async (req, res) => {
     user.otpExpires = undefined;
     await user.save();
 
-    res.json({ message: 'Password Reset Successful.' });
+    res.json({ message: 'Password Reset Successful! Ab Login Kre.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 5. DASHBOARD & AUTO REWARDS & DOWNLINE CALCULATION
+// 5. DASHBOARD & AUTO CREDIT CHECK
 app.get('/api/user/dashboard', authenticateToken, async (req, res) => {
   try {
     let user = await User.findById(req.user.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
     const now = new Date();
-
     let updated = false;
+
     user.pendingSubmissions = user.pendingSubmissions.filter(sub => {
       if (now >= new Date(sub.creditTime)) {
         user.walletBalance += sub.amount;
@@ -166,37 +192,20 @@ app.get('/api/user/dashboard', authenticateToken, async (req, res) => {
       return true;
     });
 
-    const downline = await User.find({ referredBy: user.referralCode }).select('name email activePlan createdAt');
-    const directActiveCount = downline.filter(u => u.activePlan !== 'No Active Plan').length;
-
-    const rewardsList = [
-      { id: 'starter', name: 'Starter Reward', directNeed: 3, bonus: 500 },
-      { id: 'builder', name: 'Team Builder', directNeed: 5, bonus: 1000 },
-      { id: 'leader', name: 'Team Leader', directNeed: 8, bonus: 2000 },
-      { id: 'elite', name: 'Elite Achiever', directNeed: 20, bonus: 7000 }
-    ];
-
-    for (let r of rewardsList) {
-      if (directActiveCount >= r.directNeed && !user.claimedRewards.includes(r.id)) {
-        user.walletBalance += r.bonus;
-        user.totalEarned += r.bonus;
-        user.claimedRewards.push(r.id);
-        user.transactionsHistory.unshift({
-          type: `🎁 Target Bonus: ${r.name}`,
-          amount: r.bonus,
-          date: new Date().toLocaleString()
-        });
-        updated = true;
-      }
-    }
-
     if (updated) await user.save();
+    res.json(user);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-    res.json({
-      ...user.toObject(),
-      downline,
-      directActiveCount
-    });
+// GET ACTIVE DAILY TASK
+app.get('/api/user/daily-task', authenticateToken, async (req, res) => {
+  try {
+    const task = await Task.findOne().sort({ createdAt: -1 });
+    const user = await User.findById(req.user.id);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isSubmittedToday = user ? user.lastSubmissionDate === todayStr : false;
+
+    res.json({ task, isSubmittedToday });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -212,7 +221,7 @@ app.post('/api/user/submit-page', authenticateToken, async (req, res) => {
 
     const todayStr = new Date().toISOString().split('T')[0];
     if (user.lastSubmissionDate === todayStr) {
-      return res.status(400).json({ message: 'Per day sirf 1 page submission allowed hai!' });
+      return res.status(400).json({ message: 'Aaj ka task already submit ho chuka hai. Please wait for next task!' });
     }
 
     const earnedAmount = (user.perPageRate || 210) * Number(pageCount);
@@ -222,24 +231,22 @@ app.post('/api/user/submit-page', authenticateToken, async (req, res) => {
     user.pendingSubmissions.push({ pages: pageCount, amount: earnedAmount, creditTime });
     await user.save();
 
-    let attachments = [];
-    if (imageBase64) {
-      const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-      attachments.push({
-        filename: 'submission.jpg',
-        content: Buffer.from(base64Data, 'base64')
-      });
+    if (apiKey) {
+      let emailPayload = {
+        from: 'Portal App <noreply@awnishacademy.online>',
+        to: [ADMIN_EMAIL],
+        subject: `📄 New Page Submission: ${user.name}`,
+        html: `<p><b>User:</b> ${user.name} (${user.email})</p><p><b>Pages:</b> ${pageCount}</p><p><b>Plan:</b> ${user.activePlan}</p>`
+      };
+
+      if (imageBase64) {
+        emailPayload.attachments = [{ filename: 'submission.jpg', content: imageBase64.split(',')[1] }];
+      }
+
+      await resend.emails.send(emailPayload).catch(e => console.log('Mail error:', e));
     }
 
-    resend.emails.send({
-      from: FROM_EMAIL,
-      to: [process.env.ADMIN_EMAIL || 'awnishac@gmail.com'],
-      subject: `📄 New Page Submission: ${user.name}`,
-      text: `User: ${user.name} (${user.email})\nPages: ${pageCount}\nPlan: ${user.activePlan}`,
-      attachments
-    }).catch(e => console.log('Resend Mail error:', e));
-
-    res.json({ message: 'Page Submitted! 10 Minutes me balance wallet me credit ho jayega.' });
+    res.json({ message: 'Task Submitted successfully! 10 minutes me amount wallet me credit ho jayega.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -249,34 +256,41 @@ app.post('/api/user/deposit', authenticateToken, async (req, res) => {
     const { planName, amount, perPageRate, utr, screenshotBase64 } = req.body;
     const user = await User.findById(req.user.id);
 
-    user.depositRequests.unshift({
+    user.deposits.unshift({
       planName,
       amount: Number(amount),
       perPageRate: Number(perPageRate),
       utr,
-      screenshotBase64,
-      status: 'PENDING'
+      screenshotBase64: screenshotBase64 || null,
+      status: 'PENDING',
+      date: new Date().toLocaleString()
     });
     await user.save();
 
-    let attachments = [];
-    if (screenshotBase64) {
-      const base64Data = screenshotBase64.replace(/^data:image\/\w+;base64,/, '');
-      attachments.push({
-        filename: 'screenshot.jpg',
-        content: Buffer.from(base64Data, 'base64')
-      });
+    if (apiKey) {
+      let emailPayload = {
+        from: 'Portal App <noreply@awnishacademy.online>',
+        to: [ADMIN_EMAIL],
+        subject: `💵 Deposit Request: ₹${amount} (${planName})`,
+        html: `
+          <h3>User Deposit Details:</h3>
+          <p><b>Name:</b> ${user.name}</p>
+          <p><b>Email:</b> ${user.email}</p>
+          <p><b>Mobile:</b> ${user.mobile}</p>
+          <p><b>Plan:</b> ${planName} (₹${amount})</p>
+          <p><b>Rate Per Page:</b> ₹${perPageRate}</p>
+          <p><b>UTR Ref:</b> ${utr}</p>
+        `
+      };
+
+      if (screenshotBase64) {
+        emailPayload.attachments = [{ filename: 'screenshot.jpg', content: screenshotBase64.split(',')[1] }];
+      }
+
+      await resend.emails.send(emailPayload).catch(e => console.log('Mail error:', e));
     }
 
-    resend.emails.send({
-      from: FROM_EMAIL,
-      to: [process.env.ADMIN_EMAIL || 'awnishac@gmail.com'],
-      subject: `💵 Deposit Request: ₹${amount} (${planName})`,
-      text: `User Details:\nName: ${user.name}\nEmail: ${user.email}\nMobile: ${user.mobile}\nPlan: ${planName} (₹${amount})\nRate Per Page: ₹${perPageRate}\nUTR Ref: ${utr}`,
-      attachments
-    }).catch(e => console.log('Resend Mail error:', e));
-
-    res.json({ message: 'Deposit Request Submitted! Wait for plan active.' });
+    res.json({ message: 'Deposit Request submitted! Verification ke baad Plan active ho jayega.' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -290,25 +304,46 @@ app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Low Balance! Apke wallet me itna balance nahi hai.' });
     }
 
-    user.withdrawalRequests.unshift({
+    user.walletBalance -= Number(amount);
+    
+    user.withdrawals.unshift({
       amount: Number(amount),
       upi,
-      name,
       bank,
       accountNo,
       ifsc,
-      status: 'PENDING'
+      name,
+      status: 'PENDING',
+      date: new Date().toLocaleString()
     });
+
+    user.transactionsHistory.unshift({
+      type: 'Withdrawal (Pending)',
+      amount: -Number(amount),
+      date: new Date().toLocaleString()
+    });
+    
     await user.save();
 
-    resend.emails.send({
-      from: FROM_EMAIL,
-      to: [process.env.ADMIN_EMAIL || 'awnishac@gmail.com'],
-      subject: `🏦 Withdrawal Request: ₹${amount}`,
-      text: `User: ${user.name} (${user.email})\nAmount: ₹${amount}\nUPI: ${upi}\nBank: ${bank}\nAccount: ${accountNo}\nIFSC: ${ifsc}\nHolder Name: ${name}`
-    }).catch(e => console.log('Resend Mail error:', e));
+    if (apiKey) {
+      await resend.emails.send({
+        from: 'Portal App <noreply@awnishacademy.online>',
+        to: [ADMIN_EMAIL],
+        subject: `🏦 Withdrawal Request: ₹${amount}`,
+        html: `
+          <h3>Withdrawal Details:</h3>
+          <p><b>User:</b> ${user.name} (${user.email})</p>
+          <p><b>Amount:</b> ₹${amount}</p>
+          <p><b>UPI:</b> ${upi}</p>
+          <p><b>Bank:</b> ${bank}</p>
+          <p><b>Account:</b> ${accountNo}</p>
+          <p><b>IFSC:</b> ${ifsc}</p>
+          <p><b>Holder Name:</b> ${name}</p>
+        `
+      }).catch(e => console.log('Mail error:', e));
+    }
 
-    res.json({ message: 'Withdrawal Request submitted successfully!' });
+    res.json({ message: 'Withdrawal Request submitted! Status: Pending' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -318,135 +353,224 @@ app.post('/api/user/support-msg', authenticateToken, async (req, res) => {
     const { text } = req.body;
     const user = await User.findById(req.user.id);
 
-    resend.emails.send({
-      from: FROM_EMAIL,
-      to: [process.env.ADMIN_EMAIL || 'awnishac@gmail.com'],
-      subject: `💬 Support Query from ${user.name}`,
-      text: `User: ${user.name} (${user.email})\nMessage: ${text}`
-    }).catch(e => console.log('Resend Mail error:', e));
+    if (apiKey) {
+      await resend.emails.send({
+        from: 'Portal App <noreply@awnishacademy.online>',
+        to: [ADMIN_EMAIL],
+        subject: `💬 Support Query from ${user.name}`,
+        html: `<p><b>User:</b> ${user.name} (${user.email})</p><p><b>Message:</b> ${text}</p>`
+      }).catch(e => console.log('Mail error:', e));
+    }
 
     res.json({ message: 'Message sent to Admin Email!' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET ALL DATA FOR ADMIN PANEL
-app.get('/api/admin/all-data', authenticateToken, async (req, res) => {
+// --- TEAM & REFERRAL API ---
+app.get('/api/user/team', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
+    const directUsers = await User.find({ referredBy: req.user.id }).select('name email activePlan walletBalance createdAt');
+    const directActive = directUsers.filter(u => u.activePlan && u.activePlan !== 'No Active Plan').length;
 
-    const users = await User.find({ role: { $ne: 'admin' } }).select('-password');
-    
+    res.json({
+      directTotal: directUsers.length,
+      directActive: directActive,
+      directUsers: directUsers
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/user/tree', authenticateToken, async (req, res) => {
+  try {
+    const teamTree = await User.find({ referredBy: req.user.id }).select('name email activePlan referralCode');
+    res.json(teamTree);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ADMIN PANEL ROUTES
+app.get('/api/admin/users', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
+  const users = await User.find({ role: { $ne: 'admin' } }).select('-password');
+  res.json(users);
+});
+
+// ADMIN: GET ALL REQUESTS
+app.get('/api/admin/requests', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
+  try {
+    const users = await User.find({ role: { $ne: 'admin' } });
     let deposits = [];
     let withdrawals = [];
 
     users.forEach(u => {
-      (u.depositRequests || []).forEach(d => {
-        if (d.status === 'PENDING') {
-          deposits.push({ ...d.toObject(), userName: u.name, userEmail: u.email, userId: u._id });
-        }
-      });
+      if (u.deposits) {
+        u.deposits.forEach(d => {
+          deposits.push({
+            userId: u._id,
+            userName: u.name,
+            userEmail: u.email,
+            userMobile: u.mobile,
+            depositId: d._id,
+            planName: d.planName,
+            amount: d.amount,
+            perPageRate: d.perPageRate,
+            utr: d.utr,
+            screenshotBase64: d.screenshotBase64,
+            status: d.status,
+            date: d.date
+          });
+        });
+      }
 
-      (u.withdrawalRequests || []).forEach(w => {
-        if (w.status === 'PENDING') {
-          withdrawals.push({ ...w.toObject(), userName: u.name, userEmail: u.email, userId: u._id, currentBalance: u.walletBalance });
-        }
-      });
+      if (u.withdrawals) {
+        u.withdrawals.forEach(w => {
+          withdrawals.push({
+            userId: u._id,
+            userName: u.name,
+            userEmail: u.email,
+            userMobile: u.mobile,
+            withdrawalId: w._id,
+            amount: w.amount,
+            upi: w.upi,
+            bank: w.bank,
+            accountNo: w.accountNo,
+            ifsc: w.ifsc,
+            holderName: w.name,
+            status: w.status,
+            date: w.date
+          });
+        });
+      }
     });
 
-    res.json({ users, deposits, withdrawals });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json({ deposits, withdrawals });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// GET ALL USERS FOR ADMIN PANEL (Fixes 404 Error)
-app.get('/api/admin/users', authenticateToken, async (req, res) => {
+// ADMIN: POST DAILY TASK
+app.post('/api/admin/create-task', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
   try {
-    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
-
-    const users = await User.find({ role: { $ne: 'admin' } }).select('-password');
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    const { title, description, sampleText } = req.body;
+    await Task.deleteMany({});
+    const newTask = new Task({ title, description, sampleText });
+    await newTask.save();
+    res.json({ message: 'Daily Task published to all users successfully! (Valid for 24 hours)' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// APPROVE WITHDRAWAL REQUEST
-app.post('/api/admin/approve-withdraw', authenticateToken, async (req, res) => {
+// ADMIN: APPROVE / REJECT DEPOSIT
+app.post('/api/admin/deposit-action', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
   try {
-    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
-    const { userId, reqId } = req.body;
-
+    const { userId, depositId, action } = req.body;
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const reqObj = user.withdrawalRequests.id(reqId);
-    if (reqObj && reqObj.status === 'PENDING') {
-      reqObj.status = 'APPROVED';
-      const approvedAmount = reqObj.amount;
+    const dep = user.deposits.id(depositId);
+    if (!dep) return res.status(404).json({ message: 'Deposit request not found' });
 
-      user.walletBalance = 0;
-      user.transactionsHistory.unshift({
-        type: 'Withdrawal Approved (Paid)',
-        amount: -approvedAmount,
-        date: new Date().toLocaleString()
-      });
+    dep.status = action;
 
-      await user.save();
-      return res.json({ message: 'Withdrawal Approved! User wallet set to 0.' });
+    if (action === 'APPROVED') {
+      const isFirstActivation = user.activePlan === 'No Active Plan';
+      user.activePlan = dep.planName;
+      user.perPageRate = Number(dep.perPageRate);
+
+      if (isFirstActivation && user.referredBy) {
+        const referrer = await User.findById(user.referredBy);
+        if (referrer) {
+          const bonus = dep.amount * 0.10;
+          referrer.walletBalance += bonus;
+          referrer.totalEarned += bonus;
+          referrer.referralBonusEarned = (referrer.referralBonusEarned || 0) + bonus;
+          referrer.transactionsHistory.unshift({
+            type: `Referral Bonus (${user.name})`,
+            amount: bonus,
+            date: new Date().toLocaleString()
+          });
+          await referrer.save();
+        }
+      }
     }
-    res.status(400).json({ message: 'Request not found or already processed.' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+
+    await user.save();
+    res.json({ message: `Deposit request ${action} successfully!` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// APPROVE PLAN DEPOSIT REQUEST
-app.post('/api/admin/approve-deposit', authenticateToken, async (req, res) => {
+// ADMIN: APPROVE / REJECT WITHDRAWAL
+app.post('/api/admin/withdraw-action', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
   try {
-    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
-    const { userId, reqId } = req.body;
-
+    const { userId, withdrawalId, action } = req.body;
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const reqObj = user.depositRequests.id(reqId);
-    if (reqObj && reqObj.status === 'PENDING') {
-      reqObj.status = 'APPROVED';
-      user.activePlan = reqObj.planName;
-      user.perPageRate = reqObj.perPageRate;
+    const w = user.withdrawals.id(withdrawalId);
+    if (!w) return res.status(404).json({ message: 'Withdrawal request not found' });
 
+    w.status = action;
+
+    if (action === 'REJECTED') {
+      user.walletBalance += w.amount;
       user.transactionsHistory.unshift({
-        type: `Plan Activated (${reqObj.planName})`,
-        amount: reqObj.amount,
+        type: 'Withdrawal Refunded',
+        amount: w.amount,
         date: new Date().toLocaleString()
       });
-
-      await user.save();
-      return res.json({ message: 'Plan Approved & Deposit Balance Credited!' });
+    } else if (action === 'APPROVED') {
+      user.transactionsHistory.unshift({
+        type: 'Withdrawal Approved',
+        amount: -w.amount,
+        date: new Date().toLocaleString()
+      });
     }
-    res.status(400).json({ message: 'Request not found.' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+
+    await user.save();
+    res.json({ message: `Withdrawal request ${action} successfully!` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// MANUAL PLAN APPROVAL
 app.post('/api/admin/approve-plan/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
-  const { planName, perPageRate } = req.body;
-  await User.findByIdAndUpdate(req.params.id, { activePlan: planName, perPageRate: Number(perPageRate) });
-  res.json({ message: 'Plan approved and activated!' });
+  const { planName, perPageRate, planPrice } = req.body;
+  
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  const isFirstActivation = user.activePlan === 'No Active Plan';
+  user.activePlan = planName;
+  user.perPageRate = Number(perPageRate);
+  await user.save();
+
+  if (isFirstActivation && user.referredBy) {
+    const referrer = await User.findById(user.referredBy);
+    if (referrer) {
+      const price = Number(planPrice) || 599;
+      const bonus = price * 0.10;
+
+      referrer.walletBalance += bonus;
+      referrer.totalEarned += bonus;
+      referrer.referralBonusEarned = (referrer.referralBonusEarned || 0) + bonus;
+      referrer.transactionsHistory.unshift({
+        type: `Referral Bonus (${user.name})`,
+        amount: bonus,
+        date: new Date().toLocaleString()
+      });
+      await referrer.save();
+    }
+  }
+
+  res.json({ message: 'Plan approved and activated successfully!' });
 });
 
-// DELETE USER
 app.delete('/api/admin/delete-user/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
   await User.findByIdAndDelete(req.params.id);
   res.json({ message: 'User deleted permanently!' });
 });
 
-// RESET USER BALANCE
 app.post('/api/admin/user-reset/:id', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') return res.status(403).json({ message: 'Access Denied' });
   await User.findByIdAndUpdate(req.params.id, { walletBalance: 0, totalEarned: 0, activePlan: 'No Active Plan' });
@@ -455,8 +579,3 @@ app.post('/api/admin/user-reset/:id', authenticateToken, async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-// Health check ping endpoint
-app.get('/ping', (req, res) => {
-  res.status(200).send('Server is awake!');
-});
