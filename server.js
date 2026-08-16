@@ -579,3 +579,10 @@ app.post('/api/admin/user-reset/:id', authenticateToken, async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+function joinDate(date) {
+  return new Date(date);
+}
+
+// Public folder ki files ko directly accessible banane ke liye:
+app.use(express.static('public'));
