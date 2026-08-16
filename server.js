@@ -369,7 +369,7 @@ app.post('/api/user/support-msg', authenticateToken, async (req, res) => {
 // --- TEAM & REFERRAL API ---
 app.get('/api/user/team', authenticateToken, async (req, res) => {
   try {
-    const directUsers = await User.find({ referredBy: req.user.id }).select('name email activePlan walletBalance createdAt');
+    const directUsers = await User.find({ referredBy: req.user.id }).select('name email mobile activePlan walletBalance createdAt');
     const directActive = directUsers.filter(u => u.activePlan && u.activePlan !== 'No Active Plan').length;
 
     res.json({
@@ -382,7 +382,8 @@ app.get('/api/user/team', authenticateToken, async (req, res) => {
 
 app.get('/api/user/tree', authenticateToken, async (req, res) => {
   try {
-    const teamTree = await User.find({ referredBy: req.user.id }).select('name email activePlan referralCode');
+    // FIX 1: Included 'mobile' in select so that mobile number shows up in tree view
+    const teamTree = await User.find({ referredBy: req.user.id }).select('name email mobile activePlan referralCode');
     res.json(teamTree);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

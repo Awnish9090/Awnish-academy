@@ -22,7 +22,8 @@
     .logout-icon { width: 24px; height: 24px; stroke: #dc2626; cursor: pointer; }
 
     .brand-header { text-align: center; margin: 24px 0 20px 0; }
-    .brand-logo { width: 64px; height: 64px; background: #14B39E; color: #fff; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 8px; font-weight: bold; }
+    /* LOGO DISPLAY FIX */
+    .brand-logo-img { width: 72px; height: 72px; object-fit: contain; margin-bottom: 8px; border-radius: 12px; }
     .brand-name { font-family: serif; color: #14B39E; font-size: 22px; font-weight: 700; }
 
     .notice-card { background: linear-gradient(135deg, #0b111e, #1a233a); color: #fff; border-radius: 12px; padding: 16px; margin-bottom: 20px; text-align: center; border: 1px solid #d4af37; }
@@ -76,12 +77,12 @@
     .referral-card { background: #14B39E; color: white; text-align: center; border-radius: 16px; padding: 20px; margin-bottom: 16px; }
     .referral-title { font-size: 12px; opacity: 0.8; margin-bottom: 6px; }
     .referral-code { font-size: 24px; font-weight: 800; letter-spacing: 2px; margin-bottom: 12px; }
-    .btn-share { background: #fff; color: #4be4e4; border: none; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-share { background: #fff; color: #14B39E; border: none; padding: 10px 24px; border-radius: 50px; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     .team-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
     .stat-box { background: #fff; border-radius: 12px; padding: 16px; text-align: center; border: 1px solid #eaeaea; }
     .tree-button { background: #eaf7ed; color: #14B39E; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; margin-bottom: 20px; cursor: pointer; }
     .progress-bar-bg { background: #eee; height: 6px; border-radius: 3px; overflow: hidden; margin: 8px 0; }
-    .progress-bar-fill { background: #14B39E; height: 100%; }
+    .progress-bar-fill { background: #14B39E; height: 100%; transition: width 0.4s ease; }
 
     .downline-badge-active { background: #dcfce7; color: #15803d; font-size: 11px; font-weight: bold; padding: 4px 8px; border-radius: 6px; }
     .downline-badge-inactive { background: #fee2e2; color: #dc2626; font-size: 11px; font-weight: bold; padding: 4px 8px; border-radius: 6px; }
@@ -106,7 +107,8 @@
     <!-- AUTHENTICATION VIEW -->
     <div id="auth-view" class="view active">
       <div class="brand-header">
-        <div class="brand-logo">📖</div>
+        <!-- LOGO ATTACHED HERE -->
+        <img src="/Logo.png" alt="Awnish Academy Logo" class="brand-logo-img">
         <div class="brand-name">AWNISH ACADEMY</div>
         <div style="font-size: 13px; color: #777; margin-top: 4px;" id="auth-sub-title">Sign in to continue</div>
       </div>
@@ -254,8 +256,8 @@
 
         <div class="form-group"><label class="form-label">Amount (₹)</label><input type="number" id="w-amount" class="form-input" placeholder="e.g. 500"></div>
         <div class="form-group"><label class="form-label">UPI ID</label><input type="text" id="w-upi" class="form-input" placeholder="name@upi"></div>
-        <div class="form-group"><label class="form-label">Account Holder Name</label><input type="text" id="w-name" class="form-input" placeholder="e.g. John Doe"> only characters allowed </div>
-        <div class="form-group"><label class="form-label">Bank Name</label><input type="text" id="w-bank" class="form-input" placeholder="e.g. State Bank of India"> only characters allowed </div>
+        <div class="form-group"><label class="form-label">Account Holder Name</label><input type="text" id="w-name" class="form-input" placeholder="e.g. John Doe"></div>
+        <div class="form-group"><label class="form-label">Bank Name</label><input type="text" id="w-bank" class="form-input" placeholder="e.g. State Bank of India"></div>
         <div class="form-group"><label class="form-label">Account Number</label><input type="text" id="w-acc" class="form-input" placeholder="e.g. 1234567890"></div>
         <div class="form-group"><label class="form-label">IFSC Code</label><input type="text" id="w-ifsc" class="form-input" placeholder="e.g. SBIN0002499"></div>
 
@@ -312,7 +314,7 @@
         <div class="referral-card">
           <div class="referral-title">Referral Code</div>
           <div class="referral-code" id="display-ref-code">---</div>
-          <button id="share-btn" class="share-btn" style="background-color: white ; color: black ; border: 50px; padding: 10px 20px; border-radius: 50px; cursor: pointer;" onclick="share(this)" data-ref="%= user.referralCode %>">Share & Earn money</button>
+          <button id="share-btn" class="btn-share" onclick="shareApp()">Share & Earn money</button>
         </div>
 
         <div class="team-stats">
@@ -326,41 +328,44 @@
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Daily Achiever Income</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹2500/day</span></div>
           <div style="font-size: 12px; color: #777; margin: 8px 0;">Base: 100 total team active (one-time unlock) + Daily 5 joinings</div>
-          <div style="display: flex; justify-content: space-between; font-size: 12px;"><span>Team (unlock at 100)</span><span>1/100</span></div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 1%;"></div></div>
+          <div style="display: flex; justify-content: space-between; font-size: 12px;"><span id="achiever-team-text">Team (unlock at 100)</span><span id="achiever-team-count">0/100</span></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="achiever-bar" style="width: 0%;"></div></div>
           <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 6px;"><span>Today's Joinings</span><span>0/5</span></div>
           <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 0%;"></div></div>
         </div>
 
         <div class="section-title">Reward Targets</div>
+
+        <!-- DYNAMIC REWARD BARS (UPDATING ACCORDING TO USER ACHIEVEMENT) -->
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Starter Reward</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹500</span></div>
-          <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 3 direct active</div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 33%;"></div></div>
+          <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 3 direct active (<span id="reward-1-text">0/3</span>)</div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="reward-1-bar" style="width: 0%;"></div></div>
         </div>
 
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Team Builder</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹1000</span></div>
-          <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 5 direct & 10 total team active</div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 20%;"></div></div>
+          <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 5 direct & 10 total team active (<span id="reward-2-text">0/10</span>)</div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="reward-2-bar" style="width: 0%;"></div></div>
         </div>
 
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Team Leader</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹2000</span></div>
-          <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 8 direct & 20 total team active</div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 12%;"></div></div>
+          <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 8 direct & 20 total team active (<span id="reward-3-text">0/20</span>)</div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="reward-3-bar" style="width: 0%;"></div></div>
         </div>
 
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Elite Achiever</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹7000</span></div>
-          <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 20 direct & 50 total team active</div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 5%;"></div></div>
+          <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 20 direct & 50 total team active (<span id="reward-4-text">0/50</span>)</div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="reward-4-bar" style="width: 0%;"></div></div>
         </div>
 
         <div class="section-title">Monthly Salary</div>
         <div class="card">
           <div style="display: flex; justify-content: space-between;"><strong>Monthly Salary Income</strong><span style="background: #eee; padding: 2px 8px; border-radius: 8px; font-size: 12px;">₹50,000/month</span></div>
-          <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 500 total team active</div>
+          <div style="font-size: 12px; color: #777; margin: 4px 0;">Need 500 total team active (<span id="salary-text">0/500</span>)</div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="salary-bar" style="width: 0%;"></div></div>
         </div>
 
         <!-- DOWNLINE DIRECT REFERRALS LIST SECTION -->
@@ -461,6 +466,7 @@
     let selectedPlan = { name: 'Starter — ₹699', amount: 699, perPageRate: 100 };
     let authMode = 'login';
     let qrGenerator = null;
+    let currentReferralCode = "";
 
     function initQRScanner() {
       const qrEl = document.getElementById("qrcode");
@@ -500,7 +506,7 @@
       });
       const data = await res.json();
       if(data.otp) {
-        alert(`🔑 Aapka 6-Digit Password Reset OTP hai: ${data.otp}\n(Yeh 03 minute tak valid hai)`);
+        alert(`🔑 Aapka 6-Digit Password Reset OTP hai: ${data.otp}\n(Yeh 10 minute tak valid hai)`);
         document.getElementById('forgot-otp').value = data.otp;
       } else {
         alert(data.message);
@@ -584,6 +590,7 @@
       const res = await fetch('/api/user/dashboard', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
       if(res.ok) {
         const d = await res.json();
+        currentReferralCode = d.referralCode || '';
         document.getElementById('display-name').innerText = d.name.toUpperCase();
         document.getElementById('display-balance').innerText = '₹' + d.walletBalance;
         document.getElementById('display-earned').innerText = 'Total Earned: ₹' + d.totalEarned;
@@ -663,13 +670,43 @@
       }
     }
 
+    // FIX 2: DYNAMIC REWARD TARGET PROGRESS BARS & MOBILE NUMBER DISPLAY IN DOWNLINE
     async function loadTeamData() {
       const res = await fetch('/api/user/team', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
       if (res.ok) {
         const data = await res.json();
-        document.getElementById('stat-direct').innerText = `${data.directActive}/${data.directTotal}`;
-        document.getElementById('stat-total').innerText = `${data.directActive}/${data.directTotal}`;
+        const directActive = data.directActive || 0;
+        const totalActive = data.directActive || 0; // Expand logic if multi-tier active count exists
 
+        document.getElementById('stat-direct').innerText = `${directActive}/${data.directTotal || 0}`;
+        document.getElementById('stat-total').innerText = `${totalActive}/${data.directTotal || 0}`;
+
+        // Dynamic Reward Targets Progress Bar Calculations
+        // 1. Daily Achiever
+        document.getElementById('achiever-team-count').innerText = `${totalActive}/100`;
+        document.getElementById('achiever-bar').style.width = Math.min(100, (totalActive / 100) * 100) + '%';
+
+        // 2. Starter Reward (3 direct active)
+        document.getElementById('reward-1-text').innerText = `${directActive}/3`;
+        document.getElementById('reward-1-bar').style.width = Math.min(100, (directActive / 3) * 100) + '%';
+
+        // 3. Team Builder (10 total team active)
+        document.getElementById('reward-2-text').innerText = `${totalActive}/10`;
+        document.getElementById('reward-2-bar').style.width = Math.min(100, (totalActive / 10) * 100) + '%';
+
+        // 4. Team Leader (20 total team active)
+        document.getElementById('reward-3-text').innerText = `${totalActive}/20`;
+        document.getElementById('reward-3-bar').style.width = Math.min(100, (totalActive / 20) * 100) + '%';
+
+        // 5. Elite Achiever (50 total team active)
+        document.getElementById('reward-4-text').innerText = `${totalActive}/50`;
+        document.getElementById('reward-4-bar').style.width = Math.min(100, (totalActive / 50) * 100) + '%';
+
+        // 6. Monthly Salary (500 total team active)
+        document.getElementById('salary-text').innerText = `${totalActive}/500`;
+        document.getElementById('salary-bar').style.width = Math.min(100, (totalActive / 500) * 100) + '%';
+
+        // Downline Members Display with Mobile Numbers
         const container = document.getElementById('downline-team-list');
         if (!data.directUsers || data.directUsers.length === 0) {
           container.innerHTML = `<div style="text-align: center; color: #999; font-size: 13px; padding: 20px; background: #fff; border-radius: 12px; border: 1px solid #eaeaea;">Abhi tak koi user aapke referral se nahi juda hai.</div>`;
@@ -683,7 +720,7 @@
             <div class="list-item" style="display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <div class="list-item-title">${u.name}</div>
-                <div class="list-item-sub" style="font-size: 12px; color: #555;">📧 ${u.email}</b> | Mobile No: ${u.mobile}</div>
+                <div class="list-item-sub" style="font-size: 12px; color: #555;">📧 ${u.email} | Mobile No: <b>${u.mobile || 'N/A'}</b></div>
                 <div class="list-item-sub" style="font-size: 11px; color: #888;">Plan: <b>${u.activePlan}</b> | Joined: ${joinDate}</div>
               </div>
               <div>
@@ -697,12 +734,13 @@
       }
     }
 
+    // FIX 1: TEAM TREE WITH MOBILE NUMBER
     async function viewTree() {
       const res = await fetch('/api/user/tree', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
       if(res.ok) {
         const tree = await res.json();
         if(tree.length === 0) return alert('Aapke under koi referral abhi tak join nahi hua hai.');
-        let treeMsg = 'Aapke Team Members:\n\n' + tree.map((t, idx) => `${idx + 1}. ${t.name} (${t.email})\n   Plan: ${t.activePlan} | Mobile No: ${t.mobile}`).join('\n\n');
+        let treeMsg = 'Aapke Team Members:\n\n' + tree.map((t, idx) => `${idx + 1}. ${t.name} (${t.email})\n   Mobile No: ${t.mobile || 'N/A'}\n   Plan: ${t.activePlan}`).join('\n\n');
         alert(treeMsg);
       }
     }
@@ -1019,19 +1057,16 @@
       window.scrollTo(0, 0);
     }
 
-    loadView();
-
-    document.getElementById('shareBtn').addEventListener('click', async (e) => {
-      // currentTarget use karne se agar Button ke andar koi icon ya span hai tab bhi sahi data-ref milega
-      const userReferralCode = e.currentTarget.getAttribute('data-ref'); 
-
+    // FIX 3, 4 & 5: SHARE BUTTON FUNCTIONALITY WITH LINK & REFERRAL CODE
+    async function shareApp() {
+      const userRef = currentReferralCode || document.getElementById('display-ref-code').innerText || '';
       const apkDownloadUrl = "https://www.awnishacademy.online/app.apk"; 
-      const websiteSignupUrl = `https://www.awnishacademy.online/register?ref=${userReferralCode}`;
+      const websiteUrl = `https://www.awnishacademy.online`;
 
-      const shareMessage = `Awnish Academy App download kre aur mera referral code use karein paye bonus 10% par referral!\n\n` +
-                           `🔑 Referral Code: ${userReferralCode}\n` +
+      const shareMessage = `Awnish Academy App download karein aur mera referral code use karke payein 10% bonus!\n\n` +
+                           `🔑 Referral Code: ${userRef}\n` +
                            `📲 Direct APK Download: ${apkDownloadUrl}\n` +
-                           `🌐 Website: ${websiteSignupUrl}`;
+                           `🌐 Website: ${websiteUrl}`;
 
       if (navigator.share) {
         try {
@@ -1044,9 +1079,11 @@
         }
       } else {
         navigator.clipboard.writeText(shareMessage);
-        alert('Details copy ho gayi hain!');
+        alert('Share message & Referral link successfully copy ho gaya hai!');
       }
-    });
+    }
+
+    loadView();
   </script>
 </body>
 </html>
